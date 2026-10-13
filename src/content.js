@@ -31,8 +31,11 @@
       const body = root.hasAttribute('data-message-author-role') ? root :
         root.querySelector('[data-message-author-role]') || root;
       const text = (body.innerText || body.textContent || '').trim();
-      return { id: 'm-' + index, index, role, body, text };
-    }).filter(x => (x.role === 'assistant' || x.role === 'user') && x.text.length > 0);
+      // A reply can consist entirely of an image, chart, or embedded visual.
+      const hasVisual = !!body.querySelector('img, svg, canvas, iframe');
+      return { id: 'm-' + index, index, role, body, text, hasVisual };
+    }).filter(x => (x.role === 'assistant' || x.role === 'user') &&
+      (x.text.length > 0 || x.hasVisual));
   }
 
   function scan() {
@@ -43,7 +46,7 @@
         id: x.id,
         role: x.role,
         signature: x.role + ':' + x.text.slice(0, 80),
-        preview: x.text.replace(/\s+/g, ' ').slice(0, 150)
+        preview: x.text ? x.text.replace(/\s+/g, ' ').slice(0, 150) : '[Visual-only message]'
       }))
     };
   }
