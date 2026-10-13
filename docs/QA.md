@@ -45,4 +45,10 @@ Print/RTL acceptance (when authenticated testing is resumed):
 - Copy/search Persian and Arabic mixed with English, digits and punctuation from a saved PDF, and check natural reading order.
 - Export an intentionally incomplete scan with per-message image warnings. Verify warnings appear in the preview, standalone HTML, Markdown and structured JSON.
 
+Export failure handling (when live QA resumes):
+- Block one of the selected HTML/Markdown/JSON downloads; ensure the others are still attempted and PDF printing is still available.
+- Verify the preview says downloads **started** (not completed), and that errors identify the failed format.
+- Retry an export and note the potential duplicate filenames created with Chrome's uniquify behavior.
+- Simulate a failed session-storage deletion; the preview should not disappear or claim data was cleared.
+
 Status: source and automated checks are available. Real-browser authenticated smoke tests have not yet been attested.
