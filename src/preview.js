@@ -107,7 +107,7 @@ async function exportSelected() {
     if (started.length) messages.push('Started: ' + started.join(', ') + '.');
     if (failures.length) messages.push('Failed: ' + failures.join('; ') + '.');
     if (!started.length && !failures.length) messages.push('No export format selected.');
-    setInfo(messages.join(' ') + (failures.length ? ' Retry failed formats individually after checking your browser downloads.' : ''));
+    setInfo(messages.join(' ') + (failures.length ? ' You can retry the export; successful downloads may be duplicated.' : ''));
   } finally {
     $('export').disabled = false;
   }
