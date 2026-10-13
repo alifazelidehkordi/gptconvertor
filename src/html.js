@@ -31,7 +31,7 @@ function safeStyle(raw) {
 }
 
 
-export function sanitizeHtml(input) {
+export function sanitizeHtml(input, options = {}) {
   const parser = new DOMParser();
   const parsed = parser.parseFromString(String(input || ''), 'text/html');
   const clean = document.createElement('div');
@@ -52,6 +52,13 @@ export function sanitizeHtml(input) {
       const src = node.getAttribute('src') || '';
       if (!/^https?:\/\//i.test(src) && !/^data:image\/(?:png|jpeg|gif|webp);base64,/i.test(src)
           && !/^data:image\/svg\+xml;charset=utf-8,/i.test(src)) return null;
+      if (/^https?:\/\//i.test(src) && options.allowExternalImages === false) {
+        const placeholder = document.createElement('span');
+        placeholder.className = 'visual-fallback';
+        placeholder.textContent = '[External image blocked: ' +
+          (node.getAttribute('alt') || 'image') + ']';
+        return placeholder;
+      }
       output.src = src;
       output.alt = node.getAttribute('alt') || '';
       output.referrerPolicy = 'no-referrer';
