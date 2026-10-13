@@ -59,4 +59,9 @@ Keyboard and assistive-technology acceptance (when live-site testing resumes):
 - Check visible focus rings in light and dark themes and confirm status/selection counts are screen-reader announcements.
 - Test high-contrast/forced-color mode and zoom/reflow.
 
+Standalone HTML privacy and sanitization (when live-site testing resumes):
+- Open a generated HTML export offline and inspect that no page-owned scripts or forms survived the export.
+- Test malicious HTML with CSS positioning/overlays, third-party image URLs, onclick/onerror, and unsafe link protocols. Verify static styling survives but active behavior and overlay CSS do not.
+- Inspect the embedded Content Security Policy and no-referrer hints in the exported HTML. External image URLs, when retained, can still initiate network requests; confirm the user knows this limitation.
+
 Status: source and automated checks are available. Real-browser authenticated smoke tests have not yet been attested.
