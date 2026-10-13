@@ -132,7 +132,7 @@ table{border-collapse:collapse;max-width:100%}
 th,td{border:1px solid #ccd3dd;padding:6px 10px;overflow-wrap:anywhere;vertical-align:top}
 blockquote{border-inline-start:3px solid #94a3b8;padding-inline-start:14px}
 .export-warning,.capture-note{background:#fff3d7;color:#694600;padding:10px;border-radius:6px}
-.capture-note{font-size:12px}
+.capture-note{font-size:12px}\n.visual-fallback{border:1px dashed #94a3b8;color:#5e6672;padding:6px}
 @media screen{table{display:block;overflow-x:auto}}
 @page{size:${paperSize};margin:18mm 14mm}
 @media print{
