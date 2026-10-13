@@ -31,6 +31,14 @@ For optional code tests, install Node.js 20+ and run `npm run verify`. This exte
 - `.json`: canonical structured message data (role, source, content, HTML and warnings), ideal for later processing.
 - `.pdf`: portable printable version; text is selectable in the standard HTML-based print path.
 
+## Project status and next milestones
+
+**Current:** v0.1 source implementation with automated Chromium/Node regression tests. Fixture-based CI passed on October 13, 2026; live authenticated ChatGPT QA and release packaging are still outstanding.
+
+The next priorities are reliable message detection, accurate capture of long conversations, clear warnings for missing content, fully offline exports, PDF/RTL quality, and an installable v1 release. DOCX/ODT and pixel-exact visual mode are later improvements.
+
+See [the updated roadmap and release gates](docs/PLAN.md) and [browser QA checklist](docs/QA.md). Visual-only replies and merged-table/image-dimension preservation are being hardened in the current development work.
+
 ## Known limitations
 
 - Scans the currently rendered DOM; very long virtualized conversations may not include offscreen messages.

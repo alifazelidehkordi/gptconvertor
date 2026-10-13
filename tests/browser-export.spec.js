@@ -87,3 +87,27 @@ test('HTML sanitizer removes scripts, unsafe links and handlers', async ({page})
   expect(output).not.toContain('javascript:');
   expect(output).toContain('photo.png');
 });
+
+test('HTML export retains table spans and captured visual dimensions', async ({page}) => {
+  await page.setContent('<p>test</p>');
+  const output = await page.evaluate(async ({url, fixture}) => {
+    const {sanitizeHtml,buildHtml} = await import(url);
+    const html = '<table><tr><th colspan="2">Summary</th></tr>'+
+      '<tr><td rowspan="2">A</td><td>1</td></tr>'+
+      '<tr><td>2</td></tr></table>'+
+      '<img src="data:image/png;base64,AA==" width="640" height="300">'+
+      '<img src="https://example.com/i.png" width="999999" height="-1">';
+    return {
+      clean:sanitizeHtml(html),
+      exported:buildHtml({...fixture,messages:[{...fixture.messages[0],html}]})
+    };
+  }, {url:htmlUrl,fixture:doc});
+  expect(output.clean).toContain('colspan="2"');
+  expect(output.clean).toContain('rowspan="2"');
+  expect(output.clean).toContain('width="640"');
+  expect(output.clean).toContain('height="300"');
+  expect(output.clean).not.toContain('999999');
+  expect(output.clean).not.toContain('height="-1"');
+  expect(output.exported).toContain('colspan="2"');
+  expect(output.exported).toContain('width="640"');
+});

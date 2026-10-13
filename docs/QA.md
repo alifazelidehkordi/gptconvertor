@@ -6,11 +6,13 @@
 4. Check that Assistant replies only is selected and user prompts are hidden.
 5. Select/deselect individual replies, then include user messages via the toggle.
 6. Select all four formats and click Preview & export.
-7. Check the preview for text, inline code, lists, tables, images, SVGs and Persian/English layout.
-8. Click Download selected formats; check .html, .md, .json downloads.
-9. Chrome's print dialog should appear for PDF: set Destination -> Save as PDF, and save.
-10. Search/select text in PDF. Edit Markdown in any plain-text editor. Open HTML offline.
-11. Try a long/virtualized chat, canvas, iframe, maps and heavy visual cards; note limitations.
-12. Use Clear saved preview and check that the temp job is no longer available.
+7. Check the preview for text, inline code, lists, tables (including colspan/rowspan), images, SVGs and Persian/English layout.
+8. Check assistant replies containing only an image/SVG, and confirm they are listed, selectable and exported.
+9. Check that downloaded HTML preserves merged cells and the rendered size of captured charts/images.
+10. Click Download selected formats; check .html, .md, .json downloads.
+11. Chrome's print dialog should appear for PDF: set Destination -> Save as PDF, and save.
+12. Search/select text in PDF. Edit Markdown in any plain-text editor. Open HTML offline.
+13. Try a long/virtualized chat, canvas, iframe, maps and heavy visual cards; note limitations.
+14. Use Clear saved preview and check that the temp job is no longer available.
 
 Status: source and automated checks are available. Real-browser smoke tests have not yet been attested.

@@ -65,3 +65,34 @@ test('modified message is not silently exported', async ({page}) => {
   expect(capture.data.messages).toHaveLength(0);
   expect(capture.data.warnings).toHaveLength(1);
 });
+
+test('visual-only messages appear in scan and survive export', async ({page}) => {
+  await page.setContent(`
+    <main>
+      <div data-message-author-role="assistant">
+        <img src="data:image/png;base64,AA==" alt="Diagram">
+      </div>
+      <div data-message-author-role="assistant">
+        <svg xmlns="http://www.w3.org/2000/svg" width="120" height="40">
+          <rect width="120" height="40" fill="blue"></rect>
+        </svg>
+      </div>
+      <div data-message-author-role="assistant"></div>
+    </main>`);
+  await page.evaluate(() => {
+    window.chrome = {runtime:{onMessage:{addListener: cb => window.__gptcHandle = cb}}};
+  });
+  await page.addScriptTag({content:adapter});
+  const scan = await page.evaluate(() => new Promise(resolve =>
+    window.__gptcHandle({type:'GPTC_SCAN'}, {}, resolve)));
+  expect(scan.data.messages).toHaveLength(2);
+  expect(scan.data.messages.map(m => m.preview)).toEqual([
+    '[Visual-only message]', '[Visual-only message]'
+  ]);
+  const captured = await page.evaluate(selected => new Promise(resolve =>
+    window.__gptcHandle({type:'GPTC_COLLECT',selected}, {}, resolve)),
+    scan.data.messages.map(({id,signature}) => ({id,signature})));
+  expect(captured.data.messages).toHaveLength(2);
+  expect(captured.data.messages[0].html).toContain('data:image/png;base64,');
+  expect(captured.data.messages[1].html).toContain('data:image/svg+xml');
+});
