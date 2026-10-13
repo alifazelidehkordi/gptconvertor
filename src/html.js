@@ -23,8 +23,8 @@ function safeStyle(raw) {
     const name = declaration.slice(0,separator).trim().toLowerCase();
     const value = declaration.slice(separator + 1).trim();
     if (!allowedStyles.has(name) || !value || value.length > 512 ||
-        /url\\s*\\(|expression\\s*\\(|image-set\\s*\\(|@import|!important|[<>@{}\\\\]|\\/\\*|\\*\\//i.test(value) ||
-        /[\\u0000-\\u001f]/.test(value)) continue;
+        /url\s*\(|expression\s*\(|image-set\s*\(|@import|!important|[<>@{}\\]|\/\*|\*\//i.test(value) ||
+        /[\u0000-\u001f]/.test(value)) continue;
     parts.push(name + ':' + value);
   }
   return parts.join(';');
