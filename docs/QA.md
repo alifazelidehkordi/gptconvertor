@@ -23,6 +23,11 @@ Additional reliability checks:
 - Test two identical replies and nested role wrappers: show and export both only once each.
 - A longer conversation that virtualizes messages still needs separate manual validation; these identity tests do not guarantee complete offscreen capture.
 
+Offline image QA (for later live-site sign-off):
+- Capture already-loaded same-origin images and check exported HTML opens with those embedded images offline.
+- Capture cross-origin, unavailable, and oversized images. Verify external URLs and per-message warnings rather than silent image loss.
+- Confirm visual snapshot capture still respects per-turn memory ceilings and does not fetch new image URLs.
+
 Long-conversation scan QA (when live-site testing resumes):
 - Open a long conversation near the middle. Click **Scan entire conversation** and observe progress; confirm the original scroll offset is restored.
 - Select an early message no longer in the DOM and export: it should appear with a cached-snapshot warning.
