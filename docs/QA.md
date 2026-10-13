@@ -37,4 +37,12 @@ Long-conversation scan QA (when live-site testing resumes):
 - Navigate to another conversation during scanning: the old scan must not be exported.
 - Verify normal "rendered messages" scanning/export remains unchanged when the optional full scan is not clicked.
 
+Print/RTL acceptance (when authenticated testing is resumed):
+- In the preview choose A4, print a long document; repeat with US Letter and verify the correct paper size.
+- Open the exported HTML and use Print; ensure it honors the selected size and matches the preview.
+- Test multi-page tables including merged cells, long column text, and header rows. Check no content is horizontally cut off and the final rows are present.
+- Test long code blocks, page breaks, links, footers, inline charts, and images near page boundaries; ensure text remains selectable.
+- Copy/search Persian and Arabic mixed with English, digits and punctuation from a saved PDF, and check natural reading order.
+- Export an intentionally incomplete scan with per-message image warnings. Verify warnings appear in the preview, standalone HTML, Markdown and structured JSON.
+
 Status: source and automated checks are available. Real-browser authenticated smoke tests have not yet been attested.
