@@ -55,7 +55,7 @@ Gate: load unpacked in Chrome; the four export choices are available; no server 
 ### Phase 3 — visual fidelity and offline portability (P1)
 
 1. Keep semantic HTML/text as the default. Rasterize only unsupported rich visuals (complex cards, chart canvas, maps) using a user-visible fallback policy.
-2. Inline or package image assets where permitted, with per-asset failures noted; optionally ship a ZIP archive of HTML + resources.
+2. Inline loaded origin-clean image assets where permitted (implemented with conservative size limits); keep cross-origin/unloaded assets as network references with explicit warnings. Later, optionally add ZIP packaging for remaining resources.
 3. Validate layout/quality at representative viewport sizes, print widths, and light/dark themes.
 4. Keep accessible alt text and explicit placeholders for CORS-protected content, blocked iframes, or screenshots that cannot be captured.
 

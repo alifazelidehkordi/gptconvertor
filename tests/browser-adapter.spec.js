@@ -285,3 +285,45 @@ test('bounded scan reports incomplete result when its step limit is reached', as
   expect(collected.data.warnings.join(' ')).toContain('Full conversation scan incomplete');
   expect(collected.data.scan.complete).toBeFalsy();
 });
+
+test('already-loaded same-origin images are embedded; tainted images keep a network warning', async ({page}) => {
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jTn0AAAAASUVORK5CYII=',
+    'base64'
+  );
+  await page.route('https://chatgpt.com/fixture-images', route => route.fulfill({
+    contentType:'text/html',body:`
+      <main><div data-message-author-role="assistant">
+        <p>Image comparison</p>
+        <img alt="local" src="https://chatgpt.com/same-origin.png">
+        <img alt="remote" src="https://cdn.example.org/remote.png">
+      </div></main>`
+  }));
+  await page.route('https://chatgpt.com/same-origin.png', route => route.fulfill({
+    contentType:'image/png',body:png
+  }));
+  await page.route('https://cdn.example.org/remote.png', route => route.fulfill({
+    contentType:'image/png',body:png
+  }));
+  await page.goto('https://chatgpt.com/fixture-images');
+  await page.waitForFunction(() => [...document.images].every(img =>
+    img.complete && img.naturalWidth === 1));
+  await page.evaluate(() => {
+    window.chrome = {runtime:{onMessage:{addListener: cb => window.__gptcHandle = cb}}};
+  });
+  await page.addScriptTag({content:adapter});
+  const scanned = await page.evaluate(() => new Promise(resolve =>
+    window.__gptcHandle({type:'GPTC_SCAN'}, {}, resolve)));
+  const exported = await page.evaluate(selection => new Promise(resolve =>
+    window.__gptcHandle({type:'GPTC_COLLECT',selected:selection}, {}, resolve)),
+    scanned.data.messages.map(({id,signature}) => ({id,signature})));
+  const message = exported.data.messages[0];
+  const sources = await page.evaluate(html => {
+    const parsed = new DOMParser().parseFromString(html, 'text/html');
+    return [...parsed.images].map(img => ({alt:img.alt,src:img.getAttribute('src')}));
+  }, message.html);
+  expect(sources.find(img => img.alt === 'local').src).toMatch(/^data:image\/png;base64,/);
+  expect(sources.find(img => img.alt === 'remote').src)
+    .toBe('https://cdn.example.org/remote.png');
+  expect(message.warnings.join(' ')).toContain('External images may require a network connection');
+});

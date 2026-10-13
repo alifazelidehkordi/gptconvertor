@@ -128,6 +128,32 @@
   function capture(root) {
     const warnings = new Set();
     let count = 0;
+    // Avoid huge storage writes while embedding only images already loaded by
+    // the page. No network requests or additional extension permissions.
+    let imageBudget = 2 * 1024 * 1024;
+    function inlineLoadedImage(source) {
+      if (!source.complete || !source.naturalWidth || !source.naturalHeight) return '';
+      const width = source.naturalWidth, height = source.naturalHeight;
+      if (width > 2048 || height > 2048 || width * height > 4_000_000) return '';
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      try {
+        const context = canvas.getContext('2d');
+        if (!context) return '';
+        context.drawImage(source, 0, 0);
+        const data = canvas.toDataURL('image/png');
+        if (!data.startsWith('data:image/png;base64,') ||
+            data.length > 1024 * 1024 || data.length > imageBudget) return '';
+        imageBudget -= data.length;
+        return data;
+      } catch {
+        // Cross-origin/tainted images cannot be read from canvas: keep URL.
+        return '';
+      } finally {
+        canvas.width = canvas.height = 0;
+      }
+    }
     function walk(node, depth = 0) {
       count++;
       if (count > 4500 || depth > 45) return placeholder('capture size limit reached', warnings);
@@ -168,10 +194,13 @@
       const out = document.createElement(safeTag);
       if (tag === 'img') {
         const src = validUrl(node.currentSrc || node.getAttribute('src') || '', 'img');
-        if (src) out.src = src;
-        else return placeholder('image source was unavailable', warnings);
+        if (!src) return placeholder('image source was unavailable', warnings);
+        const embedded = /^https?:/.test(src) ? inlineLoadedImage(node) : '';
+        out.src = embedded || src;
         out.alt = node.getAttribute('alt') || '';
-        if (/^https?:/.test(src)) warnings.add('External images may require a network connection');
+        if (/^https?:/.test(src) && !embedded) {
+          warnings.add('External images may require a network connection');
+        }
         const w = node.getAttribute('width'), h = node.getAttribute('height');
         if (w && /^\d+$/.test(w)) out.setAttribute('width', w);
         if (h && /^\d+$/.test(h)) out.setAttribute('height', h);
