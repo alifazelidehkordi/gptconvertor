@@ -23,3 +23,10 @@
   .paper .warning,.paper .visual-fallback{break-inside:avoid}
   .paper th{background:#eef2f8}
 }
+
+.skip-link{position:fixed;top:8px;left:8px;z-index:20;padding:10px 14px;border:2px solid #111827;border-radius:6px;background:white;color:#111827;transform:translateY(-180%);font-weight:700}
+.skip-link:focus{transform:none}
+button:focus-visible,select:focus-visible,.skip-link:focus-visible{outline:3px solid #ffb14c;outline-offset:3px}
+.paper:focus-visible{outline:3px solid #2d6eda;outline-offset:4px}
+@media print{.skip-link{display:none!important}}
+@media(forced-colors:active){button:focus-visible,select:focus-visible,.skip-link:focus-visible,.paper:focus-visible{outline:3px solid Highlight}}
