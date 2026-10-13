@@ -1,3 +1,4 @@
+import {exportNotices} from './format.js';
 // Semantic Markdown export: keep ordinary text editable, preserve block structure,
 // and use safe code delimiters for source containing literal backticks.
 const TICK = String.fromCharCode(96);
@@ -105,11 +106,20 @@ function render(node) {
 
 export function buildMarkdown(doc) {
   const title = escapeText(String(doc.title || 'ChatGPT export'));
-  return '# ' + title + '\n\nSource: ' + String(doc.sourceUrl || '') + '\n\n' +
-    (doc.messages || []).map((m, i) => {
-      const parsed = new DOMParser().parseFromString(m.html || '', 'text/html');
-      const body = render(parsed.body).replace(/\n{3,}/g, '\n\n').trim();
-      return '## ' + (i + 1) + '. ' + (m.role === 'assistant' ? 'ChatGPT' : 'You') +
-        '\n\n' + body;
-    }).join('\n\n---\n\n') + '\n';
+  const notices = exportNotices(doc);
+  const header = '# ' + title + '\n\nSource: ' + String(doc.sourceUrl || '') + '\n\n';
+  const noticeText = notices.length
+    ? '## Export notes\n\n' + notices.map(w => '- ' + escapeText(w)).join('\n') + '\n\n'
+    : '';
+  const messages = (doc.messages || []).map((m, i) => {
+    const parsed = new DOMParser().parseFromString(m.html || '', 'text/html');
+    const body = render(parsed.body).replace(/\n{3,}/g, '\n\n').trim();
+    const captureNotes = (m.warnings || []).filter(Boolean);
+    const notes = captureNotes.length
+      ? '\n\n> Capture notes: ' +
+        captureNotes.map(w => escapeText(w)).join('; ') : '';
+    return '## ' + (i + 1) + '. ' + (m.role === 'assistant' ? 'ChatGPT' : 'You') +
+      '\n\n' + body + notes;
+  }).join('\n\n---\n\n');
+  return header + noticeText + messages + '\n';
 }

@@ -9,7 +9,8 @@ const asData = source => 'data:text/javascript;base64,' +
   Buffer.from(source).toString('base64');
 const formatUrl = asData(read('src/format.js'));
 const htmlUrl = asData(read('src/html.js').replace("'./format.js'", "'" + formatUrl + "'"));
-const markdownUrl = asData(read('src/markdown.js'));
+const markdownUrl = asData(read('src/markdown.js')
+  .replace("'./format.js'", "'" + formatUrl + "'"));
 const previewJs = read('src/preview.js')
   .replace("'./format.js'", "'" + formatUrl + "'")
   .replace("'./html.js'", "'" + htmlUrl + "'")
@@ -159,4 +160,109 @@ test('Markdown preserves nested lists, inline literals, and fenced code with bac
   expect(markdown).toContain('سلام');
   expect(markdown).toContain('**bold**');
   expect(markdown).toContain('[read more](https://example.com/a%28b%29)');
+});
+
+test('incomplete scan and per-message media warnings survive HTML and Markdown export', async ({page}) => {
+  await page.setContent('<p>test</p>');
+  const result = await page.evaluate(async ({htmlUrl, markdownUrl, fixture}) => {
+    const {buildHtml} = await import(htmlUrl);
+    const {buildMarkdown} = await import(markdownUrl);
+    return {html:buildHtml(fixture,{paperSize:'Letter'}),md:buildMarkdown(fixture)};
+  }, {htmlUrl,markdownUrl,fixture:{
+    ...doc,
+    title:'Review <unsafe>',
+    scan:{complete:false,reason:'Scan step limit reached (48).'},
+    captureSummary:{requested:3,captured:1,missing:2},
+    warnings:['Message changed or disappeared: <hidden>'],
+    messages:[{...doc.messages[0],
+      warnings:['External images may require a network connection','Some <visual> unavailable']
+    }]
+  }});
+  expect(result.html).toContain('Conversation scan incomplete');
+  expect(result.html).toContain('Incomplete capture: 1 of 3');
+  expect(result.html).toContain('External images may require a network connection');
+  expect(result.html).not.toContain('<unsafe>');
+  expect(result.html).not.toContain('<hidden>');
+  expect(result.html).not.toContain('<visual>');
+  expect(result.html).toContain('@page{size:Letter;');
+  expect(result.md).toContain('## Export notes');
+  expect(result.md).toContain('Conversation scan incomplete');
+  expect(result.md).toContain('Incomplete capture: 1 of 3');
+  expect(result.md).toContain('Capture notes: External images may require a network connection');
+});
+
+test('print layouts keep long tables and end-of-document text in searchable PDF', async ({page}) => {
+  await page.setContent('<p>Initial</p>');
+  const rows = Array.from({length:72}, (_,i) =>
+    '<tr><td>' + (i+1) + '</td><td>Printable row ' + (i+1) +
+    ' - سلام دنیا Hello world</td></tr>').join('');
+  const data = {
+    ...doc,
+    title:'Long printable report',
+    messages:[{...doc.messages[0],
+      html:'<h2>Study summary</h2><p dir="rtl">سلام دنیا 123 ABC</p>'+
+        '<table><thead><tr><th>Number</th><th>Description</th></tr></thead><tbody>'+
+        rows+'</tbody></table><pre><code>' + 'a'.repeat(3000) +
+        '\nTERMINAL_CODE_LINE</code></pre><p>FINAL_PAGE_SENTINEL</p>'}]
+  };
+  const exported = await page.evaluate(async ({htmlUrl,fixture}) => {
+    const {buildHtml} = await import(htmlUrl);
+    return buildHtml(fixture,{paperSize:'Letter'});
+  }, {htmlUrl,fixture:data});
+  await page.setContent(exported);
+  await page.emulateMedia({media:'print'});
+  const styles = await page.evaluate(() => ({
+    table:getComputedStyle(document.querySelector('table')).display,
+    overflow:getComputedStyle(document.querySelector('table')).overflowX,
+    pre:getComputedStyle(document.querySelector('pre')).whiteSpace,
+    rtl:document.querySelector('p[dir="rtl"]').getAttribute('dir')
+  }));
+  expect(styles.table).toBe('table');
+  expect(styles.overflow).toBe('visible');
+  expect(styles.pre).toBe('pre-wrap');
+  expect(styles.rtl).toBe('rtl');
+  const pdf = await page.pdf({printBackground:true,preferCSSPageSize:true});
+  const folder = mkdtempSync(join(tmpdir(),'gptc-long-pdf-'));
+  try {
+    const path = join(folder,'print.pdf');
+    writeFileSync(path,pdf);
+    const info = execFileSync('pdfinfo',[path],{encoding:'utf8'});
+    const count = Number(info.match(/^Pages:\s+(\d+)/m)?.[1] || 0);
+    expect(count).toBeGreaterThan(1);
+    expect(info).toMatch(/Page size:\s+612 x 792 pts/);
+    const text = execFileSync('pdftotext',[path,'-'],{encoding:'utf8'});
+    expect(text).toContain('Printable row 1');
+    expect(text).toContain('Printable row 72');
+    expect(text).toContain('TERMINAL_CODE_LINE');
+    expect(text).toContain('FINAL_PAGE_SENTINEL');
+    expect(text).toContain('Hello world');
+  } finally {rmSync(folder,{recursive:true,force:true});}
+});
+
+test('preview print size changes CSS and HTML download option without unsafe CSS', async ({page}) => {
+  const markup = read('preview.html').replace(/<script type="module"[^>]+><\/script>/,'');
+  await page.setContent(markup);
+  await page.addStyleTag({content:read('preview.css')});
+  await page.evaluate(fixture => {
+    window.location.hash = '#gptc-00000000-0000-4000-a000-000000000001';
+    window.__downloaded = '';
+    window.chrome = {
+      storage:{session:{get:async key => ({[key]:{doc:fixture,choices:['html']}})}},
+      downloads:{download:async ({url}) => {
+        window.__downloaded = await (await fetch(url)).text();
+      }}
+    };
+  }, doc);
+  await page.addScriptTag({type:'module',content:previewJs});
+  await expect(page.locator('#paperSize')).toHaveValue('A4');
+  await page.locator('#paperSize').selectOption('Letter');
+  expect(await page.locator('#gptcPrintPaper').textContent()).toContain('size:Letter;');
+  await page.locator('#export').click();
+  await expect.poll(() => page.evaluate(() => window.__downloaded)).toContain('@page{size:Letter;');
+  const cleaned = await page.evaluate(async url => {
+    const {buildHtml} = await import(url);
+    return buildHtml({title:'Safe',messages:[]},{paperSize:'</style><script>alert(1)</script>'});
+  }, htmlUrl);
+  expect(cleaned).toContain('@page{size:A4;');
+  expect(cleaned).not.toContain('<script>');
 });

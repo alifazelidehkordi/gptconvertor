@@ -22,6 +22,7 @@ No extension-owned server, telemetry, remote JavaScript, or broad always-on Chat
 - **Automated:** Node helper tests and Playwright tests for fixture-based DOM extraction, selection, file exports, sanitizer behavior, and Chromium-generated PDF text. CI ran successfully on `main` after PR #4.
 - **Not validated:** end-to-end behavior on live authenticated ChatGPT, very long/virtualized conversations, complex rich UI, fully offline HTML, or Chrome Web Store packaging.
 - **Merged hardening (PR #5):** scan/export visual-only messages and retain safe table spans and image dimensions.
+- **Merged subsequent work (#6–#10):** stable selections and warnings, bounded long-chat scans, reproducible ZIP, Markdown fidelity and best-effort embedded images. All real-life site claims remain deferred.
 
 ## Prioritized phases
 
@@ -61,7 +62,7 @@ Gate: load unpacked in Chrome; the four export choices are available; no server 
 
 **Gate:** exported HTML opens offline with declared assets; expected images appear in visual-regression fixtures; text remains selectable where possible. Issue #2.
 
-### Phase 4 — reliable PDF delivery (P1)
+### Phase 4 — reliable PDF delivery (IN PROGRESS; P1)
 
 1. Stabilize print CSS: A4/Letter, page breaks, code wrapping, table overflow, links, fonts, and mixed Persian/Arabic/English.
 2. Test PDF text search, selection and copying with real fixtures; include font fallback and ligature tests.
@@ -99,15 +100,15 @@ Gate: load unpacked in Chrome; the four export choices are available; no server 
 
 ## Immediate execution order
 
-1. **Done, PR #5 merged:** visual-only scanning, HTML table/image preservation, regression tests, and the gated roadmap.
-2. **Done, PR #6 merged:** content-based turn identifiers, full-text change detection, conversation-navigation guard, and explicit incomplete-capture reporting.
-3. **Next human QA gate:** complete issue #1 against live authenticated ChatGPT; triage adapter regressions and record evidence in `docs/QA.md`. Fixture tests do not satisfy this gate.
-4. **Current PR:** opt-in bounded scrolling (48 steps/250 turns/10 MiB), snapshots for offscreen content, progress, cancellation, and scroll restoration. Partial scans warn users; this is experimental until live QA.
-5. **Done, PR #7 merged:** deterministic, CI-tested Chrome extension ZIP packaging.
-6. **Following work:** editable Markdown fidelity (nested lists and code delimiter robustness), offline image assets, print regressions, accessibility, and comprehensive browser acceptance. Identical offscreen messages and lazy history remain open risks.
-5. Tackle DOCX and pixel-exact PDF only after the core export path is trustworthy.
+1. **Merged PRs #5–#7:** visual-only replies, message identity/capture warnings, and reproducible ZIP packaging.
+2. **Merged PR #8:** opt-in bounded long-chat scrolling, snapshots, progress/cancel and incomplete-scan disclosure; still experimental pending live QA.
+3. **Merged PR #9:** editable Markdown lists, code fences and text escaping.
+4. **Merged PR #10:** best-effort origin-clean loaded-image embedding for offline HTML.
+5. **Current PR:** print/PDF pagination and A4/Letter selection, plus warning propagation to HTML and Markdown and automated long-document PDF checks.
+6. **Afterward:** richer visual fallbacks, larger-language/RTL regression fixtures, preview/extension accessibility, dependency/security review, and release preparation.
+7. **Deferred human acceptance:** authenticate on current ChatGPT and complete issue #1; do not declare v1 production ready before this evidence exists.
 
-Use narrow pull requests with a failing regression test where possible; merge only after CI and review. Update phase status after each merge, not when a feature is only proposed.
+Use narrow pull requests with regression tests where practical; merge only after CI and review. Update phase status after each merge, not when a feature is only proposed.
 
 ## Canonical document contract
 
