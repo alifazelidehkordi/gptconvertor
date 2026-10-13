@@ -49,7 +49,7 @@ function list(node, depth = 0) {
     const value = main.join('').trim().replace(/\n{3,}/g, '\n\n');
     const continuation = indent + ' '.repeat(label.length);
     lines.push(indent + label + value.replace(/\n/g, '\n' + continuation));
-    for (const child of nested) lines.push(list(child, depth + 1).trim());
+    for (const child of nested) lines.push(list(child, depth + 1).trimEnd());
   }
   return depth ? lines.join('\n') : '\n' + lines.join('\n') + '\n\n';
 }
