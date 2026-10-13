@@ -9,7 +9,7 @@ const messages = [
   {id:'m-2',role:'assistant',signature:'assistant:Diagram',preview:'Diagram'}
 ];
 
-async function openPopup(page) {
+async function openPopup(page, sampleMessages = messages) {
   await page.setContent(popup);
   await page.addStyleTag({content:readFileSync('popup.css','utf8')});
   await page.evaluate(messages => {
@@ -36,7 +36,7 @@ async function openPopup(page) {
       storage:{session:{set:async data => {window.__saved=Object.values(data)[0];}}},
       runtime:{getURL: path => 'chrome-extension://sample/' + path}
     };
-  }, messages);
+  }, sampleMessages);
   await page.addScriptTag({content:readFileSync('src/popup.js','utf8')});
   await expect(page.locator('#export')).toBeEnabled();
 }
@@ -94,4 +94,59 @@ test('full scan is opt-in, warns about partial discovery, and enables cached exp
   expect(await page.evaluate(() => window.__collectPayload.useScanCache)).toBe(true);
   expect(await page.evaluate(() => window.__collectPayload.sourceUrl))
     .toBe('https://chatgpt.com/c/sample');
+});
+
+test('empty message lists explain next steps and disable selection controls', async ({page}) => {
+  await openPopup(page, []);
+  await expect(page.locator('#messages .message')).toHaveCount(0);
+  await expect(page.locator('#messages .empty-state'))
+    .toContainText('No messages match this filter');
+  await expect(page.locator('#toggleAll')).toBeDisabled();
+  await expect(page.locator('#export')).toBeDisabled();
+  await expect(page.locator('#count')).toContainText('(0/0)');
+  await expect(page.locator('#messages')).toHaveAttribute('role','group');
+});
+
+test('checkboxes have useful names and keyboard activation toggles selection', async ({page}) => {
+  await openPopup(page);
+  const checkbox = page.locator('#messages input[type="checkbox"]').first();
+  await expect(checkbox).toHaveAttribute('aria-label', 'ChatGPT response: Answer');
+  await checkbox.focus();
+  const focus = await checkbox.evaluate(node => getComputedStyle(node.closest('.message')).outlineStyle);
+  expect(focus).toBe('solid');
+  await page.keyboard.press('Space');
+  await expect(checkbox).not.toBeChecked();
+  await expect(page.locator('#count')).toHaveAttribute('aria-live','polite');
+  await expect(page.locator('#count')).toContainText('(1/2)');
+});
+
+test('scanning suspends selections and Escape cancels a long scan', async ({page}) => {
+  await openPopup(page);
+  await page.evaluate(() => {
+    const original = chrome.tabs.sendMessage;
+    chrome.tabs.sendMessage = async (id, payload) => {
+      if (payload.type === 'GPTC_SCAN_ALL') {
+        return new Promise(resolve => {window.__resolveFullScan = resolve;});
+      }
+      if (payload.type === 'GPTC_SCAN_CANCEL') {
+        window.__resolveFullScan({ok:true,data:{
+          title:'Cancelled fixture',sourceUrl:'https://chatgpt.com/c/sample',
+          messages:[],scan:{complete:false,found:0,steps:1,reason:'Scan cancelled by user.'}
+        }});
+        return {ok:true};
+      }
+      if (payload.type === 'GPTC_SCAN_STATUS') return {ok:true,data:{active:true,found:0,steps:1}};
+      return original(id,payload);
+    };
+  });
+  await page.locator('#scanAll').click();
+  await expect(page.locator('#cancelScan')).toBeVisible();
+  await expect(page.locator('#assistantOnly')).toBeDisabled();
+  await expect(page.locator('#toggleAll')).toBeDisabled();
+  await expect(page.locator('#messages')).toHaveAttribute('aria-busy','true');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#scanStatus')).toContainText('Incomplete scan');
+  await expect(page.locator('#scanAll')).toBeEnabled();
+  await expect(page.locator('#assistantOnly')).toBeEnabled();
+  await expect(page.locator('#messages')).toHaveAttribute('aria-busy','false');
 });
