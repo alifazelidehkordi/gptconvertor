@@ -16,7 +16,8 @@ const files = [
 test('runtime-only Chrome ZIP is deterministic, complete, and extractable', () => {
   const build = () => execFileSync(process.execPath, ['scripts/package.mjs'], {cwd:root});
   build();
-  const target = join(root, 'dist', 'gptconvertor-0.1.0.zip');
+  const version = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version;
+  const target = join(root, 'dist', 'gptconvertor-' + version + '.zip');
   const zip = readFileSync(target);
   build();
   const rebuild = readFileSync(target);
