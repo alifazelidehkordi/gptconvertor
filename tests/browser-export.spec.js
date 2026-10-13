@@ -346,3 +346,60 @@ test('preview keyboard skip-link reaches the document and focus rings are visibl
   await expect(page.locator('.toolbar')).toHaveAttribute('aria-label','Export actions');
   await expect(page.locator('#paper')).toHaveAttribute('aria-label','Exported document');
 });
+
+test('HTML sanitizer rejects arbitrary CSS while preserving captured typography', async ({page}) => {
+  await page.setContent('<p>fixture</p>');
+  const result = await page.evaluate(async url => {
+    const {sanitizeHtml} = await import(url);
+    return sanitizeHtml(
+      '<div dir="rtl" style="position:fixed;inset:0;z-index:99999;'+
+      'background-image:url(https://tracker.example/steal);color:rgb(10,20,30);'+
+      'font-family:Tahoma,Arial;white-space:pre-wrap;direction:rtl;'+
+      'transform:scale(100);border-color:#abcdef">سلام &amp; welcome</div>'+
+      '<a href="https://example.com/info" onclick="alert(1)">Read</a>'+
+      '<img src="https://images.example.org/chart.png" onerror="alert(2)">'
+    );
+  }, htmlUrl);
+  expect(result).toContain('dir="rtl"');
+  expect(result).toContain('color:rgb(10,20,30)');
+  expect(result).toContain('font-family:Tahoma,Arial');
+  expect(result).toContain('white-space:pre-wrap');
+  expect(result).toContain('border-color:#abcdef');
+  expect(result).not.toContain('position:fixed');
+  expect(result).not.toContain('z-index:');
+  expect(result).not.toContain('inset:');
+  expect(result).not.toContain('tracker.example');
+  expect(result).not.toContain('transform:');
+  expect(result).not.toContain('onclick');
+  expect(result).not.toContain('onerror');
+  expect(result).toContain('referrerpolicy="no-referrer"');
+  expect(result).toContain('rel="noopener noreferrer"');
+});
+
+test('standalone HTML has a no-script CSP and safe referrer defaults', async ({page}) => {
+  await page.setContent('<p>fixture</p>');
+  const exported = await page.evaluate(async ({url,fixture}) => {
+    const {buildHtml} = await import(url);
+    return buildHtml({
+      ...fixture,
+      messages:[{...fixture.messages[0],
+        html:'<script>window.__injectedScript = true;</script>'+
+          '<p style="color:blue;position:fixed" dir="rtl">نوشته فارسی</p>'+
+          '<a href="https://example.com">External link</a>'}]
+    });
+  },{url:htmlUrl,fixture:doc});
+  await page.setContent(exported);
+  const checked = await page.evaluate(() => ({
+    csp:document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.content,
+    referrer:document.querySelector('meta[name="referrer"]')?.content,
+    html:document.querySelector('.message-body').innerHTML,
+    injected:Boolean(window.__injectedScript)
+  }));
+  expect(checked.csp).toContain("default-src 'none'");
+  expect(checked.csp).toContain("form-action 'none'");
+  expect(checked.referrer).toBe('no-referrer');
+  expect(checked.injected).toBe(false);
+  expect(checked.html).not.toContain('position:fixed');
+  expect(checked.html).toContain('dir="rtl"');
+  expect(checked.html).toContain('نوشته فارسی');
+});

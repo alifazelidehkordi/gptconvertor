@@ -108,8 +108,10 @@ Gate: load unpacked in Chrome; the four export choices are available; no server 
 6. **Current PR:** isolate multi-format download failures, distinguish started downloads from completed downloads, preserve the PDF print path, and recover from failed temporary-data cleanup.
 7. **Done, PR #12 merged:** independent per-format downloads, truthful start/error reporting, and safer cleanup errors.
 8. **Current PR:** keyboard/screen-reader improvements: empty message states, accessible labels, focus rings, scan busy/cancel, preview skip link.
-9. **Afterward:** richer visual fallbacks, security review of captured markup/CSS, RTL fixtures, and release preparation.
-10. **Deferred human acceptance:** authenticate on current ChatGPT and complete issue #1; do not declare v1 production ready before this evidence exists.
+9. **Done, PR #13 merged:** keyboard navigation, message empty states, screen-reader labels, scan cancellation and preview skip link.
+10. **Current PR:** allowlist only capture-adapter CSS, prevent style-based document overlays, add CSP/referrer controls to standalone HTML, and test both sanitized and unsafe input.
+11. **Afterward:** richer visual fallbacks, RTL fixtures, image privacy controls and release preparation.
+12. **Deferred human acceptance:** authenticate on current ChatGPT and complete issue #1; do not declare v1 production ready before this evidence exists.
 
 Use narrow pull requests with regression tests where practical; merge only after CI and review. Update phase status after each merge, not when a feature is only proposed.
 
