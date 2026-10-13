@@ -136,3 +136,27 @@ test('preview visibly flags incomplete exports before download', async ({page}) 
   await expect(page.locator('#paper')).toContainText('Message changed or disappeared');
   await expect(page.locator('#export')).toBeEnabled();
 });
+
+test('Markdown preserves nested lists, inline literals, and fenced code with backticks', async ({page}) => {
+  await page.setContent('<p>test</p>');
+  const markdown = await page.evaluate(async url => {
+    const {buildMarkdown} = await import(url);
+    return buildMarkdown({
+      title:'Guide * Draft',sourceUrl:'https://chatgpt.com/c/test',
+      messages:[{role:'assistant',html:
+        '<ol start="3"><li>Parent<ul><li>Nested item</li><li>Another</li></ul></li>'+
+        '<li>Second</li></ol>'+
+        '<pre><code>const template = "```";\nnextLine();</code></pre>'+
+        '<p dir="rtl">سلام <code>value`x</code> and <strong>bold</strong></p>'+
+        '<p><a href="https://example.com/a(b)">read more</a></p>'
+      }]
+    });
+  }, markdownUrl);
+  expect(markdown).toContain('# Guide \\* Draft');
+  expect(markdown).toContain('3. Parent\n  - Nested item\n  - Another\n4. Second');
+  expect(markdown).toContain('````\nconst template = "```";\nnextLine();\n````');
+  expect(markdown).toContain('``value`x``');
+  expect(markdown).toContain('سلام');
+  expect(markdown).toContain('**bold**');
+  expect(markdown).toContain('[read more](https://example.com/a%28b%29)');
+});

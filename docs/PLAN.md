@@ -104,7 +104,7 @@ Gate: load unpacked in Chrome; the four export choices are available; no server 
 3. **Next human QA gate:** complete issue #1 against live authenticated ChatGPT; triage adapter regressions and record evidence in `docs/QA.md`. Fixture tests do not satisfy this gate.
 4. **Current PR:** opt-in bounded scrolling (48 steps/250 turns/10 MiB), snapshots for offscreen content, progress, cancellation, and scroll restoration. Partial scans warn users; this is experimental until live QA.
 5. **Done, PR #7 merged:** deterministic, CI-tested Chrome extension ZIP packaging.
-6. **Following work:** offline image assets, print regressions, accessibility, and comprehensive browser acceptance. Identical offscreen messages and lazy history remain open risks.
+6. **Following work:** editable Markdown fidelity (nested lists and code delimiter robustness), offline image assets, print regressions, accessibility, and comprehensive browser acceptance. Identical offscreen messages and lazy history remain open risks.
 5. Tackle DOCX and pixel-exact PDF only after the core export path is trustworthy.
 
 Use narrow pull requests with a failing regression test where possible; merge only after CI and review. Update phase status after each merge, not when a feature is only proposed.
