@@ -1,4 +1,4 @@
-import {safeFilename, escapeHtml} from './format.js';
+import {safeFilename, exportNotices, normalizePaperSize} from './format.js';
 import {sanitizeHtml, buildHtml} from './html.js';
 import {buildMarkdown} from './markdown.js';
 
@@ -20,14 +20,16 @@ function render(doc) {
   addText('h1', doc.title || 'ChatGPT export', root);
   const meta = addText('div', doc.sourceUrl + ' · ' + doc.exportedAt, root);
   meta.className = 'meta';
-  if (doc.captureSummary?.missing > 0) {
-    const {requested, captured, missing} = doc.captureSummary;
-    const warning = addText('div',
-      'Incomplete capture: ' + captured + ' of ' + requested + ' selected messages exported (' +
-      missing + ' missing). Review the capture notes below before downloading.',
-      root);
+  const notices = exportNotices(doc);
+  if (notices.length) {
+    const warning = document.createElement('div');
     warning.className = 'warning';
     warning.setAttribute('role', 'alert');
+    addText('strong', 'Export notes', warning);
+    const list = document.createElement('ul');
+    for (const note of notices) addText('li', note, list);
+    warning.append(list);
+    root.append(warning);
   }
   for (const [index, message] of doc.messages.entries()) {
     const section = document.createElement('section');
@@ -44,10 +46,6 @@ function render(doc) {
     }
     root.append(section);
   }
-  if (doc.warnings?.length) {
-    const warn = addText('div', doc.warnings.join('; '), root);
-    warn.className = 'warning';
-  }
 }
 async function saveFile(name, data, mime) {
   const blob = new Blob([data], {type:mime});
@@ -62,7 +60,7 @@ async function exportSelected() {
   $('export').disabled = true;
   try {
     if (choices.includes('html')) {
-      await saveFile(name + '.html', buildHtml(doc), 'text/html;charset=utf-8');
+      await saveFile(name + '.html', buildHtml(doc,{paperSize:$('paperSize').value}), 'text/html;charset=utf-8');
     }
     if (choices.includes('markdown')) {
       await saveFile(name + '.md', buildMarkdown(doc), 'text/markdown;charset=utf-8');
@@ -78,6 +76,20 @@ async function exportSelected() {
     $('export').disabled = false;
   }
 }
+function setPaperSize(value) {
+  const paper = normalizePaperSize(value);
+  $('paperSize').value = paper;
+  // A late stylesheet overrides the default A4 rule during native print.
+  let sheet = document.getElementById('gptcPrintPaper');
+  if (!sheet) {
+    sheet = document.createElement('style');
+    sheet.id = 'gptcPrintPaper';
+    document.head.append(sheet);
+  }
+  sheet.textContent = '@page{size:' + paper + ';margin:18mm 14mm}';
+}
+$('paperSize').addEventListener('change', () => setPaperSize($('paperSize').value));
+setPaperSize('A4');
 $('export').addEventListener('click', exportSelected);
 $('print').addEventListener('click', () => window.print());
 $('clear').addEventListener('click', async () => {
@@ -98,7 +110,8 @@ async function start() {
   const label = summary?.missing > 0
     ? summary.captured + '/' + summary.requested + ' messages · ' + summary.missing + ' missing'
     : job.doc.messages.length + ' messages';
-  setInfo(label + ' · ' + job.choices.join(', '));
+  const scanLabel = job.doc.scan?.complete === false ? ' · incomplete scan' : '';
+  setInfo(label + scanLabel + ' · ' + job.choices.join(', '));
   $('export').disabled = false;
   $('print').disabled = false;
 }
