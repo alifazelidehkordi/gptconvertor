@@ -1,6 +1,35 @@
 import {escapeHtml, exportNotices, normalizePaperSize} from './format.js';
 
 const allowed = new Set('a article aside b blockquote br code del details div em figcaption figure h1 h2 h3 h4 h5 h6 hr i img kbd li mark ol p pre s section small span strong sub summary sup table tbody td th thead tr u ul'.split(' '));
+ 
+// Mirrored from the read-only DOM adapter's captured visual style list.
+// Never accept arbitrary page CSS: positioning, overlays, animations and
+// externally loaded resources are unrelated to static document export.
+const allowedStyles = new Set([
+  'display','color','background-color','font-family','font-size','font-weight',
+  'font-style','line-height','letter-spacing','text-align','text-decoration',
+  'direction','white-space','overflow-wrap','word-break','border','border-radius',
+  'border-color','border-width','border-style','padding','margin','gap','row-gap',
+  'column-gap','flex-direction','flex-wrap','align-items','justify-content',
+  'grid-template-columns','list-style-type','vertical-align','max-width',
+  'min-width','width','height'
+]);
+function safeStyle(raw) {
+  if (typeof raw !== 'string' || raw.length > 16000) return '';
+  const parts = [];
+  for (const declaration of raw.split(';').slice(0,80)) {
+    const separator = declaration.indexOf(':');
+    if (separator < 1) continue;
+    const name = declaration.slice(0,separator).trim().toLowerCase();
+    const value = declaration.slice(separator + 1).trim();
+    if (!allowedStyles.has(name) || !value || value.length > 512 ||
+        /url\\s*\\(|expression\\s*\\(|image-set\\s*\\(|@import|!important|[<>@{}\\\\]|\\/\\*|\\*\\//i.test(value) ||
+        /[\\u0000-\\u001f]/.test(value)) continue;
+    parts.push(name + ':' + value);
+  }
+  return parts.join(';');
+}
+
 
 export function sanitizeHtml(input) {
   const parser = new DOMParser();
@@ -12,13 +41,12 @@ export function sanitizeHtml(input) {
     const output = document.createElement(node.localName);
     if (node.hasAttribute('dir') && /^(ltr|rtl|auto)$/.test(node.getAttribute('dir'))) output.dir = node.getAttribute('dir');
     if (node.hasAttribute('style')) {
-      const style = node.getAttribute('style').split(';').filter(s =>
-        /^[a-z-]+\s*:/.test(s.trim()) && !/url\s*\(|expression\s*\(|[<>@\\]/i.test(s)
-      ).join(';');
+      const style = safeStyle(node.getAttribute('style'));
       if (style) output.setAttribute('style', style);
     }
     if (node.localName === 'a' && /^https?:\/\//i.test(node.getAttribute('href') || '')) {
       output.href = node.href; output.rel = 'noopener noreferrer';
+      output.referrerPolicy = 'no-referrer';
     }
     if (node.localName === 'img') {
       const src = node.getAttribute('src') || '';
@@ -26,6 +54,7 @@ export function sanitizeHtml(input) {
           && !/^data:image\/svg\+xml;charset=utf-8,/i.test(src)) return null;
       output.src = src;
       output.alt = node.getAttribute('alt') || '';
+      output.referrerPolicy = 'no-referrer';
       // Retain intrinsic dimensions of captured canvas/chart images.
       for (const name of ['width', 'height']) {
         const value = node.getAttribute(name);
@@ -115,6 +144,8 @@ blockquote{border-inline-start:3px solid #94a3b8;padding-inline-start:14px}
   .export-warning,.capture-note{break-inside:avoid}
 }`;
   return '<!doctype html><html lang="en"><head><meta charset="utf-8">' +
+    '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; img-src data: https: http:; style-src \'unsafe-inline\'; base-uri \'none\'; form-action \'none\'; object-src \'none\'">' +
+    '<meta name="referrer" content="no-referrer">' +
     '<meta name="viewport" content="width=device-width,initial-scale=1">' +
     '<title>' + escapeHtml(doc.title || 'ChatGPT export') +
     '</title><style>' + css + '</style></head><body><h1 dir="auto">' +
