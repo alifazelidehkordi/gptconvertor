@@ -38,7 +38,11 @@ async function openPopup(page, sampleMessages = messages) {
     };
   }, sampleMessages);
   await page.addScriptTag({content:readFileSync('src/popup.js','utf8')});
-  await expect(page.locator('#export')).toBeEnabled();
+  if (sampleMessages.some(m => m.role === 'assistant')) {
+    await expect(page.locator('#export')).toBeEnabled();
+  } else {
+    await expect(page.locator('#export')).toBeDisabled();
+  }
 }
 
 test('assistant-only default and selected formats are respected', async ({page}) => {
