@@ -90,7 +90,7 @@ test('HTML sanitizer removes scripts, unsafe links and handlers', async ({page})
 
 test('HTML export retains table spans and captured visual dimensions', async ({page}) => {
   await page.setContent('<p>test</p>');
-  const output = await page.evaluate(async url => {
+  const output = await page.evaluate(async ({url, fixture}) => {
     const {sanitizeHtml,buildHtml} = await import(url);
     const html = '<table><tr><th colspan="2">Summary</th></tr>'+
       '<tr><td rowspan="2">A</td><td>1</td></tr>'+
@@ -99,9 +99,9 @@ test('HTML export retains table spans and captured visual dimensions', async ({p
       '<img src="https://example.com/i.png" width="999999" height="-1">';
     return {
       clean:sanitizeHtml(html),
-      exported:buildHtml({...doc,messages:[{...doc.messages[0],html}]})
+      exported:buildHtml({...fixture,messages:[{...fixture.messages[0],html}]})
     };
-  }, htmlUrl);
+  }, {url:htmlUrl,fixture:doc});
   expect(output.clean).toContain('colspan="2"');
   expect(output.clean).toContain('rowspan="2"');
   expect(output.clean).toContain('width="640"');
