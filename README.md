@@ -24,6 +24,14 @@ A local-first Chrome extension for exporting **selected ChatGPT messages to mult
 
 For optional code tests, install Node.js 20+ and run `npm run verify`. This extension needs no npm packages to run.
 
+## Build an installable extension ZIP
+
+Run `npm run package` with Node.js 20+ to create a **deterministic, runtime-only** `dist/gptconvertor-<version>.zip`. The archive contains the manifest, popup/preview pages, CSS, and runtime JavaScript, but no developer dependencies or tests. It does not require a web service or third-party ZIP library.
+
+To install it, extract the ZIP, then open `chrome://extensions` → **Developer mode** → **Load unpacked**, choosing the extracted folder containing `manifest.json`. Do not select the ZIP file itself.
+
+GitHub Actions also runs package integrity checks and attaches the installable ZIP under **Actions → CI run → Artifacts** when the workflow succeeds. This is a development artifact, **not** a Chrome Web Store release. Live authenticated ChatGPT testing and release QA are still required.
+
 ## Editable outputs
 
 - `.md`: edit freely in any Markdown editor (Obsidian, VS Code, etc.). Ordinary HTML formatting is converted into Markdown.
