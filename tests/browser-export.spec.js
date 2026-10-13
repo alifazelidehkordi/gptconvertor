@@ -403,3 +403,81 @@ test('standalone HTML has a no-script CSP and safe referrer defaults', async ({p
   expect(checked.html).toContain('dir="rtl"');
   expect(checked.html).toContain('نوشته فارسی');
 });
+
+test('remote image requests require opt-in; readable exports respect the choice', async ({page}) => {
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jTn0AAAAASUVORK5CYII=',
+    'base64'
+  );
+  const requests = [];
+  page.on('request', request => {
+    if (request.url().includes('cdn.example.org/track.png')) requests.push(request.url());
+  });
+  await page.route('https://cdn.example.org/track.png', route => route.fulfill({
+    contentType:'image/png',body:png
+  }));
+  const fixture = {...doc,messages:[{...doc.messages[0],
+    html:'<p>Safe offline chart <img alt="Embedded chart" '+
+      'src="data:image/png;base64,'+png.toString('base64')+'"></p>'+
+      '<p>Remote chart <img alt="Online chart" '+
+      'src="https://cdn.example.org/track.png"></p>'
+  }]};
+  const markup = read('preview.html').replace(/<script type="module"[^>]+><\/script>/,'');
+  await page.setContent(markup);
+  await page.addStyleTag({content:read('preview.css')});
+  await page.evaluate(input => {
+    location.hash = '#gptc-00000000-0000-4000-a000-000000000001';
+    window.__downloaded = {};
+    window.chrome = {
+      storage:{session:{get:async key => ({[key]:{
+        doc:input,choices:['html','markdown','json']
+      }})}},
+      downloads:{download:async ({filename,url}) => {
+        window.__downloaded[filename] = await (await fetch(url)).text();
+        return Object.keys(window.__downloaded).length;
+      }}
+    };
+  }, fixture);
+  await page.addScriptTag({type:'module',content:previewJs});
+  await expect(page.locator('#externalImages')).not.toBeChecked();
+  await expect(page.locator('#paper img')).toHaveCount(1);
+  await expect(page.locator('#paper .visual-fallback'))
+    .toContainText('External image blocked: Online chart');
+  expect(requests).toHaveLength(0);
+  await page.locator('#export').click();
+  await expect.poll(() => page.evaluate(() => Object.keys(window.__downloaded).length))
+    .toBe(3);
+  const blocked = await page.evaluate(() => window.__downloaded);
+  expect(blocked['Study guide.html']).not.toContain('cdn.example.org/track.png');
+  expect(blocked['Study guide.md']).not.toContain('cdn.example.org/track.png');
+  expect(blocked['Study guide.html']).toContain('data:image/png;base64,');
+  // JSON is structured source data and retains URL strings, but never fetches them.
+  expect(blocked['Study guide.json']).toContain('cdn.example.org/track.png');
+  expect(requests).toHaveLength(0);
+
+  await page.locator('#externalImages').check();
+  await expect(page.locator('#paper img[src="https://cdn.example.org/track.png"]'))
+    .toHaveCount(1);
+  await expect.poll(() => requests.length).toBeGreaterThan(0);
+  await page.locator('#export').click();
+  await expect.poll(() => page.evaluate(() =>
+    window.__downloaded['Study guide.html'].includes('cdn.example.org/track.png'))).toBe(true);
+  const allowed = await page.evaluate(() => window.__downloaded);
+  expect(allowed['Study guide.md']).toContain('cdn.example.org/track.png');
+});
+
+test('sanitizer placeholder uses alt text safely without loading external images', async ({page}) => {
+  await page.setContent('<p>fixture</p>');
+  const output = await page.evaluate(async url => {
+    const {sanitizeHtml} = await import(url);
+    return sanitizeHtml(
+      '<img src="https://cdn.example.org/x.png" alt="&lt;script&gt;alert(1)&lt;/script&gt;">'+
+      '<img src="data:image/png;base64,AA==" alt="Offline">',
+      {allowExternalImages:false}
+    );
+  },htmlUrl);
+  expect(output).not.toContain('cdn.example.org/x.png');
+  expect(output).toContain('External image blocked: &lt;script&gt;');
+  expect(output).toContain('data:image/png;base64,AA==');
+  expect(output).not.toContain('<script>');
+});
