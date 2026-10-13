@@ -42,7 +42,7 @@ Gate: load unpacked in Chrome; the four export choices are available; no server 
 
 **Gate:** real-browser manual QA checklist is signed off; no known P0 loss of selected text; CI passes; documented warnings for unsupported visuals. Track live-site QA in issue #1.
 
-### Phase 2 — complete conversation capture (P0, follows Phase 1)
+### Phase 2 — complete conversation capture (IN PROGRESS; P0, independent of deferred live QA)
 
 1. Define stable turn identities/signatures even when the DOM changes between scan and capture; avoid duplicate/nested message discovery.
 2. Handle loaded, lazy, and virtualized messages with **bounded, user-initiated scrolling** and progress/cancel support; preserve scroll position.
@@ -100,9 +100,11 @@ Gate: load unpacked in Chrome; the four export choices are available; no server 
 ## Immediate execution order
 
 1. **Done, PR #5 merged:** visual-only scanning, HTML table/image preservation, regression tests, and the gated roadmap.
-2. **Current PR:** content-based turn identifiers, full-text change detection, conversation-navigation guard, and explicit incomplete-capture reporting.
+2. **Done, PR #6 merged:** content-based turn identifiers, full-text change detection, conversation-navigation guard, and explicit incomplete-capture reporting.
 3. **Next human QA gate:** complete issue #1 against live authenticated ChatGPT; triage adapter regressions and record evidence in `docs/QA.md`. Fixture tests do not satisfy this gate.
-4. **Next implementation:** bounded, cancellable long-chat/virtualized capture (issue #2), then offline asset handling, print regressions, UX, and packaging.
+4. **Current PR:** opt-in bounded scrolling (48 steps/250 turns/10 MiB), snapshots for offscreen content, progress, cancellation, and scroll restoration. Partial scans warn users; this is experimental until live QA.
+5. **Done, PR #7 merged:** deterministic, CI-tested Chrome extension ZIP packaging.
+6. **Following work:** offline image assets, print regressions, accessibility, and comprehensive browser acceptance. Identical offscreen messages and lazy history remain open risks.
 5. Tackle DOCX and pixel-exact PDF only after the core export path is trustworthy.
 
 Use narrow pull requests with a failing regression test where possible; merge only after CI and review. Update phase status after each merge, not when a feature is only proposed.

@@ -64,3 +64,34 @@ test('including user turns is opt-in', async ({page}) => {
   const roles = await page.evaluate(() => window.__saved.doc.messages.map(m => m.role));
   expect(roles).toEqual(['user','assistant','assistant']);
 });
+
+test('full scan is opt-in, warns about partial discovery, and enables cached export', async ({page}) => {
+  await openPopup(page);
+  await expect(page.locator('#scanAll')).toBeEnabled();
+  await page.evaluate(() => {
+    const original = window.chrome.tabs.sendMessage;
+    window.chrome.tabs.sendMessage = async (id, payload) => {
+      if (payload.type === 'GPTC_SCAN_ALL') return {ok:true,data:{
+        title:'Long fixture',sourceUrl:'https://chatgpt.com/c/sample',
+        messages:[
+          {id:'m-0',role:'user',signature:'user:Request',preview:'Request'},
+          {id:'m-1',role:'assistant',signature:'assistant:Answer',preview:'Answer'},
+          {id:'m-2',role:'assistant',signature:'assistant:Diagram',preview:'Diagram'}
+        ],
+        scan:{complete:false,reason:'Scan step limit reached (48).',found:3,steps:48}
+      }};
+      if (payload.type === 'GPTC_SCAN_STATUS') return {ok:true,data:{active:true,found:2,steps:5}};
+      if (payload.type === 'GPTC_COLLECT') window.__collectPayload = payload;
+      return original(id,payload);
+    };
+  });
+  await page.locator('#scanAll').click();
+  await expect(page.locator('#scanStatus')).toContainText('Incomplete scan: 3 messages');
+  await expect(page.locator('#cancelScan')).toBeHidden();
+  await expect(page.locator('#messages .message')).toHaveCount(2);
+  await page.locator('#export').click();
+  await expect.poll(() => page.evaluate(() => Boolean(window.__saved))).toBeTruthy();
+  expect(await page.evaluate(() => window.__collectPayload.useScanCache)).toBe(true);
+  expect(await page.evaluate(() => window.__collectPayload.sourceUrl))
+    .toBe('https://chatgpt.com/c/sample');
+});

@@ -5,6 +5,13 @@
     <header><h1>GPT Convertor</h1><p>Save ChatGPT in formats you can keep and edit.</p></header>
     <div id="status" role="status" aria-live="polite">Finding messages…</div>
     <label class="switch"><input type="checkbox" id="assistantOnly" checked><span>Assistant replies only</span></label>
+    <section class="full-scan" aria-label="Long conversation capture">
+      <div class="row">
+        <button type="button" class="scan-button" id="scanAll" disabled>Scan entire conversation</button>
+        <button type="button" class="plain" id="cancelScan" hidden>Cancel scan</button>
+      </div>
+      <p id="scanStatus" role="status" aria-live="polite">Only currently rendered messages are listed. Full scan temporarily scrolls this conversation.</p>
+    </section>
     <section aria-label="Select messages">
       <div class="row"><strong>Messages <span id="count"></span></strong><button type="button" class="plain" id="toggleAll">Select all</button></div>
       <div id="messages" class="messages"></div>

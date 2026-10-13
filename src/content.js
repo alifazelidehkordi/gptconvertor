@@ -218,38 +218,189 @@
     return {html: result?.outerHTML || '', warnings: [...warnings]};
   }
 
+
+  // Explicit, bounded scan. Snapshots are kept only in this tab's isolated
+  // content-script memory; nothing is uploaded or persisted across reloads.
+  const MAX_SCAN_STEPS = 48;
+  const MAX_SCAN_MESSAGES = 250;
+  const MAX_SCAN_BYTES = 10 * 1024 * 1024;
+  const SCAN_DELAY_MS = 110;
+  let scanCache = new Map();
+  let scanOrigin = '';
+  let scanMeta = null;
+  let scanBusy = false;
+  let scanCancel = false;
+  let scanProgress = {active:false, steps:0, found:0};
+
+  function itemInfo(x) {
+    return {
+      id:x.id, role:x.role, signature:x.signature,
+      preview:x.text ? x.text.replace(/\s+/g, ' ').slice(0, 150) : '[Visual-only message]'
+    };
+  }
+
+  function scrollContainer() {
+    const first = nodes()[0]?.body;
+    for (let el = first; el; el = el.parentElement) {
+      const css = getComputedStyle(el);
+      if (el.scrollHeight > el.clientHeight + 32 &&
+          /^(auto|scroll|overlay)$/.test(css.overflowY)) return el;
+    }
+    const page = document.scrollingElement;
+    return page && page.scrollHeight > page.clientHeight + 32 ? page : null;
+  }
+
+  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+  async function scanLongConversation() {
+    if (scanBusy) return {ok:false,error:'A conversation scan is already running.'};
+    scanBusy = true;
+    scanCancel = false;
+    const origin = location.href;
+    const scroller = scrollContainer();
+    const previousTop = scroller?.scrollTop ?? 0;
+    let bytes = 0, steps = 0;
+    let reason = '', complete = false;
+    const snapshots = new Map();
+    scanProgress = {active:true, steps:0, found:0};
+    const recordVisible = () => {
+      for (const item of nodes()) {
+        if (snapshots.has(item.id)) continue;
+        if (snapshots.size >= MAX_SCAN_MESSAGES) {
+          reason = 'Message limit reached (' + MAX_SCAN_MESSAGES + ').';
+          break;
+        }
+        const part = capture(item.body);
+        const size = item.text.length * 2 + part.html.length * 2;
+        if (bytes + size > MAX_SCAN_BYTES) {
+          reason = 'Capture size limit reached (10 MiB).';
+          break;
+        }
+        bytes += size;
+        snapshots.set(item.id, {
+          id:item.id, role:item.role, signature:item.signature,
+          text:item.text, html:part.html, warnings:part.warnings
+        });
+      }
+      scanProgress.found = snapshots.size;
+    };
+    try {
+      if (scroller) scroller.scrollTop = 0;
+      await sleep(SCAN_DELAY_MS);
+      for (let i = 0; i < MAX_SCAN_STEPS; i++) {
+        if (scanCancel) {reason = 'Scan cancelled by user.';break;}
+        if (location.href !== origin) {reason = 'Conversation changed during scan.';break;}
+        steps = i + 1;
+        scanProgress.steps = steps;
+        recordVisible();
+        if (reason) break;
+        if (!scroller) {complete = true;break;}
+        const bottom = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+        const here = scroller.scrollTop;
+        if (here >= bottom - 2) {
+          // Give lazy content one final chance to expand.
+          await sleep(SCAN_DELAY_MS);
+          recordVisible();
+          const newBottom = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+          if (reason) break;
+          if (scroller.scrollTop >= newBottom - 2) {complete = true;break;}
+        }
+        const amount = Math.max(120, Math.floor(scroller.clientHeight * 0.65));
+        scroller.scrollTop = Math.min(bottom, here + amount);
+        await sleep(SCAN_DELAY_MS);
+      }
+      if (!complete && !reason) reason = 'Scan step limit reached (' + MAX_SCAN_STEPS + ').';
+    } catch (err) {
+      reason = 'Scan interrupted: ' + (err?.message || String(err));
+    } finally {
+      if (scroller) scroller.scrollTop = previousTop;
+      scanBusy = false;
+      scanProgress = {active:false, steps, found:snapshots.size};
+    }
+    // Do not expose data from a different conversation after SPA navigation.
+    if (location.href !== origin) {
+      scanCache.clear();
+      scanOrigin = '';
+      scanMeta = null;
+      return {ok:false,error:'Conversation changed during scan. Reopen the extension.'};
+    }
+    scanCache = snapshots;
+    scanOrigin = origin;
+    scanMeta = {complete, reason, steps, found:snapshots.size, bytes};
+    return {ok:true,data:{
+      title:document.title || 'ChatGPT conversation',
+      sourceUrl:origin,
+      messages:Array.from(snapshots.values(), itemInfo),
+      scan:scanMeta
+    }};
+  }
+
   chrome.runtime.onMessage.addListener((message, _sender, respond) => {
     if (message?.type === 'GPTC_SCAN') {
+      if (scanBusy) {respond({ok:false,error:'Full scan is in progress.'});return;}
+      scanCache.clear();
+      scanOrigin = '';
+      scanMeta = null;
       respond({ok:true, data:scan()});
       return;
+    }
+    if (message?.type === 'GPTC_SCAN_STATUS') {
+      respond({ok:true,data:scanProgress});
+      return;
+    }
+    if (message?.type === 'GPTC_SCAN_CANCEL') {
+      scanCancel = true;
+      respond({ok:true});
+      return;
+    }
+    if (message?.type === 'GPTC_SCAN_ALL') {
+      scanLongConversation().then(respond).catch(err =>
+        respond({ok:false,error:err?.message || String(err)}));
+      return true; // Keep the Chrome message channel open for the async scan.
     }
     if (message?.type === 'GPTC_COLLECT') {
       const selected = Array.isArray(message.selected) ? message.selected : [];
       const sameConversation = !message.sourceUrl || message.sourceUrl === location.href;
+      if (scanBusy) {respond({ok:false,error:'Finish or cancel the scan before exporting.'});return;}
       const available = sameConversation ? new Map(nodes().map(x => [x.id, x])) : new Map();
+      const usingCache = !!message.useScanCache && scanOrigin === location.href &&
+        scanOrigin === message.sourceUrl && !!scanMeta;
       const warnings = [];
       const messages = [];
       const skipped = [];
       if (!sameConversation) warnings.push('Conversation changed since the message list was scanned. Reopen the extension.');
+      if (usingCache && !scanMeta.complete) {
+        warnings.push('Full conversation scan incomplete: ' + scanMeta.reason);
+      }
       for (const selection of selected) {
         const entry = available.get(selection.id);
-        if (!entry || entry.signature !== selection.signature) {
-          const reason = sameConversation ? 'Message changed or disappeared' : 'Conversation changed';
+        if (entry && entry.signature === selection.signature) {
+          const part = capture(entry.body);
+          messages.push({
+            id:entry.id, role:entry.role, text:entry.text,
+            html:part.html, warnings:part.warnings
+          });
+        } else if (!entry && usingCache && scanCache.get(selection.id)?.signature === selection.signature) {
+          // A virtualized/offscreen turn is no longer in the DOM. Preserve the
+          // captured snapshot, but clearly disclose it cannot be revalidated.
+          const snapshot = scanCache.get(selection.id);
+          messages.push({...snapshot,warnings:[
+            ...snapshot.warnings,
+            'Cached from an earlier scroll position; content could not be revalidated.'
+          ]});
+        } else {
+          const reason = !sameConversation ? 'Conversation changed' :
+            entry ? 'Message changed after scanning' : 'Message changed or disappeared';
           warnings.push(reason + ': ' + String(selection.id));
-          skipped.push({id: String(selection.id), reason});
-          continue;
+          skipped.push({id:String(selection.id),reason});
         }
-        const part = capture(entry.body);
-        messages.push({
-          id: entry.id, role: entry.role, text: entry.text,
-          html: part.html, warnings: part.warnings
-        });
       }
       respond({ok:true,data:{
         version:1,title:document.title || 'ChatGPT conversation',
         sourceUrl:location.href, exportedAt:new Date().toISOString(),
         messages, warnings,
         captureSummary:{requested:selected.length,captured:messages.length,missing:skipped.length},
+        ...(usingCache ? {scan:scanMeta} : {}),
         skipped
       }});
     }

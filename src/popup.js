@@ -1,6 +1,7 @@
 const $ = (id) => document.getElementById(id);
 let sourceTab, scanData;
 let selected = new Set();
+let busy = false;
 const types = ['html','markdown','pdf','json'];
 function shown() {
   return (scanData?.messages || []).filter(m => !$('assistantOnly').checked || m.role === 'assistant');
@@ -31,7 +32,7 @@ function update() {
   const visible = shown();
   $('count').textContent = '(' + selected.size + '/' + visible.length + ')';
   $('toggleAll').textContent = visible.every(m => selected.has(m.id)) ? 'Select none' : 'Select all';
-  $('export').disabled = !selected.size || !types.some(t => $(t).checked);
+  $('export').disabled = busy || !selected.size || !types.some(t => $(t).checked);
 }
 function status(text) { $('status').textContent = text; }
 $('assistantOnly').addEventListener('change', () => {
@@ -45,13 +46,66 @@ $('toggleAll').addEventListener('click', () => {
   refresh();
 });
 types.forEach(t => $(t).addEventListener('change', update));
+
+$('scanAll').addEventListener('click', async () => {
+  if (!sourceTab?.id || busy) return;
+  busy = true;
+  $('scanAll').disabled = true;
+  $('cancelScan').hidden = false;
+  $('scanStatus').textContent = 'Scanning locally; returning to your original scroll position afterwards…';
+  update();
+  let polling = false;
+  const timer = setInterval(async () => {
+    if (polling) return;
+    polling = true;
+    try {
+      const result = await chrome.tabs.sendMessage(sourceTab.id, {type:'GPTC_SCAN_STATUS'});
+      if (result?.ok && result.data?.active) {
+        const p = result.data;
+        $('scanStatus').textContent = 'Scanning: ' + p.steps +
+          ' scroll steps · ' + p.found + ' unique messages captured.';
+      }
+    } catch { /* The scan request will surface navigation/injection errors. */ }
+    finally {polling = false;}
+  }, 250);
+  try {
+    const result = await chrome.tabs.sendMessage(sourceTab.id, {type:'GPTC_SCAN_ALL'});
+    if (!result?.ok) throw Error(result?.error || 'Full scan could not complete.');
+    scanData = result.data;
+    selected = new Set(scanData.messages.filter(m => m.role === 'assistant').map(m => m.id));
+    refresh();
+    const meta = scanData.scan;
+    $('scanStatus').textContent = meta.complete
+      ? 'Scan finished: ' + meta.found + ' messages captured in ' + meta.steps + ' steps.'
+      : 'Incomplete scan: ' + meta.found + ' messages captured. ' +
+        meta.reason + ' Exported JSON and preview will disclose this limitation.';
+    status(meta.complete ? 'Full conversation scanned.' : 'Partial scan: review the warning before export.');
+  } catch (error) {
+    $('scanStatus').textContent = 'Scan failed: ' + error.message;
+    status('Previous message selection kept.');
+  } finally {
+    clearInterval(timer);
+    busy = false;
+    $('scanAll').disabled = !sourceTab;
+    $('cancelScan').hidden = true;
+    update();
+  }
+});
+$('cancelScan').addEventListener('click', async () => {
+  $('cancelScan').disabled = true;
+  $('scanStatus').textContent = 'Cancelling scan and restoring scroll position…';
+  try { await chrome.tabs.sendMessage(sourceTab.id, {type:'GPTC_SCAN_CANCEL'}); }
+  catch { /* In-flight scan will report failure after navigation. */ }
+  finally { $('cancelScan').disabled = false; }
+});
 $('export').addEventListener('click', async () => {
   $('export').disabled = true;
   try {
     const selectedMessages = scanData.messages.filter(m => selected.has(m.id))
       .map(m => ({id:m.id,signature:m.signature}));
     const result = await chrome.tabs.sendMessage(sourceTab.id,
-      {type:'GPTC_COLLECT',selected:selectedMessages,sourceUrl:scanData.sourceUrl});
+      {type:'GPTC_COLLECT',selected:selectedMessages,sourceUrl:scanData.sourceUrl,
+       useScanCache:!!scanData.scan});
     if (!result?.ok) throw Error('Capture failed. Please scan again.');
     if (!result.data?.messages?.length) {
       throw Error(result.data?.warnings?.[0] || 'No messages captured. Please scan again.');
@@ -77,6 +131,7 @@ async function start() {
     if (!result?.ok) throw Error('Conversation scan failed.');
     scanData = result.data;
     selected = new Set(scanData.messages.filter(m => m.role === 'assistant').map(m => m.id));
+    $('scanAll').disabled = false;
     refresh();
     status(scanData.messages.length + ' rendered messages found.');
   } catch(e) { status('Scan failed: ' + e.message); }

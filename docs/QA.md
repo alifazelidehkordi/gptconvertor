@@ -23,4 +23,13 @@ Additional reliability checks:
 - Test two identical replies and nested role wrappers: show and export both only once each.
 - A longer conversation that virtualizes messages still needs separate manual validation; these identity tests do not guarantee complete offscreen capture.
 
+Long-conversation scan QA (when live-site testing resumes):
+- Open a long conversation near the middle. Click **Scan entire conversation** and observe progress; confirm the original scroll offset is restored.
+- Select an early message no longer in the DOM and export: it should appear with a cached-snapshot warning.
+- Cancel a scan and confirm "incomplete" is displayed; export should still include captured items with incomplete-scan warning.
+- Exercise step/message/size caps; incomplete scans must never imply full coverage.
+- Check duplicates far apart and lazy-loaded historical turns; document ambiguities or missing results rather than marking full coverage.
+- Navigate to another conversation during scanning: the old scan must not be exported.
+- Verify normal "rendered messages" scanning/export remains unchanged when the optional full scan is not clicked.
+
 Status: source and automated checks are available. Real-browser authenticated smoke tests have not yet been attested.
