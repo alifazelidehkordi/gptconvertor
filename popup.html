@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>GPT Convertor</title><link rel="stylesheet" href="popup.css"></head>
+<body>
+  <main>
+    <header><h1>GPT Convertor</h1><p>Save ChatGPT in formats you can keep and edit.</p></header>
+    <div id="status" role="status" aria-live="polite">Finding messages…</div>
+    <label class="switch"><input type="checkbox" id="assistantOnly" checked><span>Assistant replies only</span></label>
+    <section aria-label="Select messages">
+      <div class="row"><strong>Messages <span id="count"></span></strong><button type="button" class="plain" id="toggleAll">Select all</button></div>
+      <div id="messages" class="messages"></div>
+    </section>
+    <fieldset><legend>Export formats (choose several)</legend>
+      <label><input type="checkbox" id="html" checked> Standalone HTML</label>
+      <label><input type="checkbox" id="markdown" checked> Editable Markdown (.md)</label>
+      <label><input type="checkbox" id="pdf" checked> PDF (Save as PDF)</label>
+      <label><input type="checkbox" id="json"> Editable structured JSON</label>
+    </fieldset>
+    <button type="button" id="export" class="primary" disabled>Preview & export</button>
+    <p class="fineprint">Processed locally. PDF opens Chrome's print dialog; no upload is performed.</p>
+  </main>
+  <script type="module" src="src/popup.js"></script>
+</body></html>

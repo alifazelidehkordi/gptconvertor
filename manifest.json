@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "GPT Convertor",
+  "version": "0.1.0",
+  "description": "Export ChatGPT replies to HTML, editable Markdown, structured JSON and print-ready PDF.",
+  "minimum_chrome_version": "102",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "downloads"
+  ],
+  "action": {
+    "default_title": "GPT Convertor",
+    "default_popup": "popup.html"
+  }
+}
