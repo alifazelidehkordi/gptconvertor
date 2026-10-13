@@ -65,6 +65,12 @@ Printed tables use paginated table layout rather than on-screen horizontal scrol
 
 The popup provides explicitly named message checkboxes, a readable empty state, keyboard focus indicators, and announcements for selection counts. During a long scan, selection controls are unavailable; press **Escape** or choose **Cancel scan** to stop. The preview includes a keyboard-accessible **Skip to exported document** link. Screen-reader and high-contrast manual acceptance remain part of the later release gate.
 
+## Standalone HTML safety
+
+Saved HTML is sanitized with an explicit tag and CSS-property allowlist. The file includes a restrictive **Content Security Policy** disallowing scripts, forms and object embedding, plus `no-referrer` defaults for external links and images. Regular typography, direction and table formatting remain supported.
+
+**Important:** If an image could not be embedded locally, its retained external URL may still be requested when the HTML is opened. The extension does not fetch remote assets itself, but opening exported content may require a network connection for those images. Review export warnings before sharing sensitive documents.
+
 ## Known limitations
 
 - A user-triggered **Scan entire conversation** action attempts to scroll through long/virtualized chats (up to 48 steps, 250 messages, or 10 MiB of captured content). It returns to your original scroll position; cancelling or hitting a limit yields an explicitly incomplete scan. Some lazy-loaded turns may still be missed.
