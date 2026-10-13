@@ -13,4 +13,5 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npm run verify
       - run: npx playwright install --with-deps chromium
+      - run: command -v pdftotext || (sudo apt-get update && sudo apt-get install -y poppler-utils)
       - run: npm run test:browser
