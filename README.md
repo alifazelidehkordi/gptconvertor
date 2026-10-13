@@ -39,6 +39,12 @@ GitHub Actions also runs package integrity checks and attaches the installable Z
 - `.json`: canonical structured message data (role, source, content, HTML and warnings), ideal for later processing.
 - `.pdf`: portable printable version; text is selectable in the standard HTML-based print path.
 
+## Long-conversation capture (experimental)
+
+Click **Scan entire conversation** in the extension popup to temporarily scroll through the page and snapshot messages as they appear. This action is opt-in, processed locally, and **restores your original scroll position**. Choose **Cancel scan** at any time. The scanner stops at 48 steps, 250 messages, or 10 MiB of captured content.
+
+During export, offscreen messages may use snapshots taken earlier in the scan. Their contents cannot be revalidated until rendered again; this is explicitly noted in the output warnings. Incomplete scans are labeled in the popup, preview, and JSON. Repeated identical turns that are never visible together may still be ambiguous, and dynamically lazy-loaded history is not guaranteed complete. A scan reporting "finished" only indicates reaching the current scroll container bottom.
+
 ## Project status and next milestones
 
 **Current:** v0.1 source implementation with automated Chromium/Node regression tests. Fixture-based CI passed on October 13, 2026; live authenticated ChatGPT QA and release packaging are still outstanding.
@@ -49,7 +55,7 @@ See [the updated roadmap and release gates](docs/PLAN.md) and [browser QA checkl
 
 ## Known limitations
 
-- Scans the currently rendered DOM; very long virtualized conversations may not include offscreen messages.
+- A user-triggered **Scan entire conversation** action attempts to scroll through long/virtualized chats (up to 48 steps, 250 messages, or 10 MiB of captured content). It returns to your original scroll position; cancelling or hitting a limit yields an explicitly incomplete scan. Some lazy-loaded turns may still be missed.
 - ChatGPT updates can break message selectors.
 - Images may require a network connection in standalone HTML.
 - Rich UI components are not guaranteed pixel-exact or interactive. Canvas and iframe capture may be blocked.
