@@ -69,7 +69,7 @@ function zipStore(entries) {
     entry.writeUInt16LE(0, 32);
     entry.writeUInt16LE(0, 34);
     entry.writeUInt16LE(0, 36);
-    entry.writeUInt32LE(0o100644 << 16, 38);
+    entry.writeUInt32LE((0o100644 << 16) >>> 0, 38);
     entry.writeUInt32LE(offset, 42);
     central.push(entry, filename);
     offset += localHeader.length + filename.length + data.length;
