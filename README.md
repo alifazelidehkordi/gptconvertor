@@ -34,7 +34,7 @@ GitHub Actions also runs package integrity checks and attaches the installable Z
 
 ## Editable outputs
 
-- `.md`: edit freely in any Markdown editor (Obsidian, VS Code, etc.). Ordinary HTML formatting is converted into Markdown.
+- `.md`: edit freely in any Markdown editor (Obsidian, VS Code, etc.). Ordinary HTML formatting is converted into Markdown, including nested lists, escaped literal punctuation, and code blocks containing backticks.
 - `.html`: an HTML document you can print or edit in an HTML editor; complex visuals may be static.
 - `.json`: canonical structured message data (role, source, content, HTML and warnings), ideal for later processing.
 - `.pdf`: portable printable version; text is selectable in the standard HTML-based print path.
