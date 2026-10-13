@@ -13,6 +13,7 @@ async function openPopup(page) {
   await page.setContent(popup);
   await page.addStyleTag({content:readFileSync('popup.css','utf8')});
   await page.evaluate(messages => {
+    Object.defineProperty(window.crypto, 'randomUUID', {configurable:true, value:() => '00000000-0000-4000-a000-000000000001'});
     window.__saved = null;
     window.__opened = null;
     window.close = () => {};
