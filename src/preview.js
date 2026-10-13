@@ -38,7 +38,9 @@ function render(doc) {
     addText('h2', (index+1) + '. ' + (message.role === 'assistant' ? 'ChatGPT' : 'You'), section);
     const body = document.createElement('div');
     body.className = 'message-body';
-    body.innerHTML = sanitizeHtml(message.html);
+    body.innerHTML = sanitizeHtml(message.html, {
+      allowExternalImages:$('externalImages').checked
+    });
     section.append(body);
     if (message.warnings?.length) {
       const warn = addText('div', 'Capture notes: ' + message.warnings.join('; '), section);
@@ -69,13 +71,22 @@ async function saveFile(name, data, mime) {
 async function exportSelected() {
   if (!job) return;
   const {doc, choices} = job;
+  // Block remote requests by default in both preview and downloaded readable
+  // formats. JSON keeps the original source data, including URL strings.
+  const exportDoc = $('externalImages').checked ? doc : {
+    ...doc,
+    messages:doc.messages.map(message => ({
+      ...message,
+      html:sanitizeHtml(message.html,{allowExternalImages:false})
+    }))
+  };
   const name = safeFilename(doc.title || 'chatgpt-export');
   const files = [
     {type:'html', label:'HTML', extension:'.html',
       mime:'text/html;charset=utf-8',
-      build:() => buildHtml(doc,{paperSize:$('paperSize').value})},
+      build:() => buildHtml(exportDoc,{paperSize:$('paperSize').value})},
     {type:'markdown',label:'Markdown',extension:'.md',
-      mime:'text/markdown;charset=utf-8',build:() => buildMarkdown(doc)},
+      mime:'text/markdown;charset=utf-8',build:() => buildMarkdown(exportDoc)},
     {type:'json',label:'JSON',extension:'.json',
       mime:'application/json;charset=utf-8',build:() => JSON.stringify(doc,null,2)}
   ];
@@ -124,6 +135,9 @@ function setPaperSize(value) {
   }
   sheet.textContent = '@page{size:' + paper + ';margin:18mm 14mm}';
 }
+$('externalImages').addEventListener('change', () => {
+  if (job) render(job.doc);
+});
 $('paperSize').addEventListener('change', () => setPaperSize($('paperSize').value));
 setPaperSize('A4');
 $('export').addEventListener('click', exportSelected);
