@@ -26,6 +26,21 @@ export function sanitizeHtml(input) {
           && !/^data:image\/svg\+xml;charset=utf-8,/i.test(src)) return null;
       output.src = src;
       output.alt = node.getAttribute('alt') || '';
+      // Retain intrinsic dimensions of captured canvas/chart images.
+      for (const name of ['width', 'height']) {
+        const value = node.getAttribute(name);
+        if (/^[0-9]+$/.test(value || '') && Number(value) > 0 && Number(value) <= 8192) {
+          output.setAttribute(name, value);
+        }
+      }
+    }
+    if (node.localName === 'th' || node.localName === 'td') {
+      for (const name of ['colspan', 'rowspan']) {
+        const value = node.getAttribute(name);
+        if (/^[0-9]+$/.test(value || '') && Number(value) > 1 && Number(value) <= 100) {
+          output.setAttribute(name, value);
+        }
+      }
     }
     if (node.localName === 'ol' && /^[0-9]+$/.test(node.getAttribute('start') || '')) {
       output.start = Number(node.getAttribute('start'));
