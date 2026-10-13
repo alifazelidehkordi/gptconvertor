@@ -1,5 +1,8 @@
 import {test, expect} from '@playwright/test';
-import {readFileSync} from 'node:fs';
+import {readFileSync, writeFileSync, mkdtempSync, rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {execFileSync} from 'node:child_process';
 
 const read = path => readFileSync(path, 'utf8');
 const asData = source => 'data:text/javascript;base64,' +
@@ -50,6 +53,14 @@ test('preview exports HTML, editable Markdown and JSON and produces PDF', async 
   const pdf = await page.pdf({format:'A4',printBackground:true});
   expect(pdf.subarray(0,4).toString()).toBe('%PDF');
   expect(pdf.length).toBeGreaterThan(4000);
+  const tmp = mkdtempSync(join(tmpdir(),'gptc-pdf-'));
+  try {
+    const path = join(tmp,'preview.pdf');
+    writeFileSync(path,pdf);
+    const extracted = execFileSync('pdftotext',[path,'-'],{encoding:'utf8'});
+    expect(extracted).toContain('Study guide');
+    expect(extracted).toContain('Hello world');
+  } finally {rmSync(tmp,{recursive:true,force:true});}
   await page.locator('#export').click();
   await expect.poll(async () =>
     page.evaluate(() => Object.keys(window.__downloads).length)).toBe(3);
