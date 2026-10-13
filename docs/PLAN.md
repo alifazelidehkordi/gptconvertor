@@ -104,9 +104,10 @@ Gate: load unpacked in Chrome; the four export choices are available; no server 
 2. **Merged PR #8:** opt-in bounded long-chat scrolling, snapshots, progress/cancel and incomplete-scan disclosure; still experimental pending live QA.
 3. **Merged PR #9:** editable Markdown lists, code fences and text escaping.
 4. **Merged PR #10:** best-effort origin-clean loaded-image embedding for offline HTML.
-5. **Current PR:** print/PDF pagination and A4/Letter selection, plus warning propagation to HTML and Markdown and automated long-document PDF checks.
-6. **Afterward:** richer visual fallbacks, larger-language/RTL regression fixtures, preview/extension accessibility, dependency/security review, and release preparation.
-7. **Deferred human acceptance:** authenticate on current ChatGPT and complete issue #1; do not declare v1 production ready before this evidence exists.
+5. **Merged PR #11:** print/PDF pagination, A4/Letter selection, warning propagation into HTML/Markdown, and long-document PDF regression checks.
+6. **Current PR:** isolate multi-format download failures, distinguish started downloads from completed downloads, preserve the PDF print path, and recover from failed temporary-data cleanup.
+7. **Afterward:** richer visual fallbacks, larger-language/RTL regression fixtures, preview/extension accessibility, dependency/security review, and release preparation.
+8. **Deferred human acceptance:** authenticate on current ChatGPT and complete issue #1; do not declare v1 production ready before this evidence exists.
 
 Use narrow pull requests with regression tests where practical; merge only after CI and review. Update phase status after each merge, not when a feature is only proposed.
 

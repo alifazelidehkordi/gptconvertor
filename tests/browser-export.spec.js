@@ -266,3 +266,56 @@ test('preview print size changes CSS and HTML download option without unsafe CSS
   expect(cleaned).toContain('@page{size:A4;');
   expect(cleaned).not.toContain('<script>');
 });
+
+test('one failed download does not prevent other formats or PDF printing', async ({page}) => {
+  const markup = read('preview.html').replace(/<script type="module"[^>]+><\/script>/,'');
+  await page.setContent(markup);
+  await page.addStyleTag({content:read('preview.css')});
+  await page.evaluate(fixture => {
+    window.location.hash = '#gptc-00000000-0000-4000-a000-000000000001';
+    window.__attempts = [];
+    window.__printed = false;
+    window.print = () => {window.__printed = true;};
+    window.chrome = {
+      storage:{session:{get:async key => ({[key]:{
+        doc:fixture, choices:['html','markdown','json','pdf']
+      }})}},
+      downloads:{download:async ({filename}) => {
+        window.__attempts.push(filename);
+        if (filename.endsWith('.html')) throw Error('HTML was blocked');
+        return window.__attempts.length;
+      }}
+    };
+  }, doc);
+  await page.addScriptTag({type:'module',content:previewJs});
+  await page.locator('#export').click();
+  await expect(page.locator('#info')).toContainText('Failed: HTML: HTML was blocked.');
+  await expect(page.locator('#info')).toContainText('Started: Markdown, JSON, PDF print dialog.');
+  expect(await page.evaluate(() => window.__attempts)).toEqual([
+    'Study guide.html','Study guide.md','Study guide.json'
+  ]);
+  expect(await page.evaluate(() => window.__printed)).toBeTruthy();
+  await expect(page.locator('#export')).toBeEnabled();
+});
+
+test('failed preview-data cleanup leaves content available and reports the error', async ({page}) => {
+  const markup = read('preview.html').replace(/<script type="module"[^>]+><\/script>/,'');
+  await page.setContent(markup);
+  await page.addStyleTag({content:read('preview.css')});
+  await page.evaluate(fixture => {
+    window.location.hash = '#gptc-00000000-0000-4000-a000-000000000001';
+    window.chrome = {
+      storage:{session:{
+        get:async key => ({[key]:{doc:fixture,choices:['json']}}),
+        remove:async () => {throw Error('Storage not available');}
+      }},
+      downloads:{download:async () => 1}
+    };
+  }, doc);
+  await page.addScriptTag({type:'module',content:previewJs});
+  await expect(page.locator('#export')).toBeEnabled();
+  await page.locator('#clear').click();
+  await expect(page.locator('#info')).toContainText('Could not clear temporary export data');
+  await expect(page.locator('#paper')).toContainText('Study guide');
+  await expect(page.locator('#export')).toBeEnabled();
+});
