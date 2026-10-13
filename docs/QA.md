@@ -64,4 +64,11 @@ Standalone HTML privacy and sanitization (when live-site testing resumes):
 - Test malicious HTML with CSS positioning/overlays, third-party image URLs, onclick/onerror, and unsafe link protocols. Verify static styling survives but active behavior and overlay CSS do not.
 - Inspect the embedded Content Security Policy and no-referrer hints in the exported HTML. External image URLs, when retained, can still initiate network requests; confirm the user knows this limitation.
 
+Remote image privacy controls (live manual verification deferred):
+- With external images unchecked by default, open a preview containing remote and inline-data images. Only embedded images should load; remote URLs must become visible placeholders.
+- Inspect Network: opening a preview or downloading HTML/Markdown must not request third-party image URLs until opted in.
+- Check **Load online images**, verify a remote image appears and the saved HTML/Markdown contains the external URL.
+- Export JSON both ways: it should retain original image URLs as data without loading them.
+- Check malformed alt text and URI schemes against the sanitizer.
+
 Status: source and automated checks are available. Real-browser authenticated smoke tests have not yet been attested.
