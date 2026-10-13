@@ -57,7 +57,7 @@ See [the updated roadmap and release gates](docs/PLAN.md) and [browser QA checkl
 
 - A user-triggered **Scan entire conversation** action attempts to scroll through long/virtualized chats (up to 48 steps, 250 messages, or 10 MiB of captured content). It returns to your original scroll position; cancelling or hitting a limit yields an explicitly incomplete scan. Some lazy-loaded turns may still be missed.
 - ChatGPT updates can break message selectors.
-- Images may require a network connection in standalone HTML.
+- The extension tries to embed already-loaded, origin-clean images as PNG directly into exported HTML (with 1 MiB per-image and 2 MiB per-message inline budgets). Cross-origin/tainted, oversized, or unloaded images still use external URLs and may require network connectivity.
 - Rich UI components are not guaranteed pixel-exact or interactive. Canvas and iframe capture may be blocked.
 - PDF workflow is manual Save as PDF; complete E2E browser QA still required.
 
