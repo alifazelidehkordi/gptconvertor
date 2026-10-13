@@ -7,7 +7,7 @@ A local-first Chrome extension for exporting **selected ChatGPT messages to mult
 - **Assistant replies only** is enabled by default.
 - Toggle to include your prompts; select individual turns or all visible turns.
 - Choose any combination of **HTML, Markdown, JSON, PDF**.
-- Preview captured content and download all selected text formats from one button.
+- Preview captured content and start downloads for all selected text formats independently; if one fails, the others are still attempted and PDF printing remains available.
 - If PDF is selected, Chrome opens Print: select **Destination → Save as PDF** and confirm. This produces searchable text because it prints HTML rather than screenshots.
 - Ordinary text, code and tables remain HTML text; some SVG/Canvas visuals are captured as images. Unsupported elements show a warning.
 
@@ -68,6 +68,12 @@ Printed tables use paginated table layout rather than on-screen horizontal scrol
 - The extension tries to embed already-loaded, origin-clean images as PNG directly into exported HTML (with 1 MiB per-image and 2 MiB per-message inline budgets). Cross-origin/tainted, oversized, or unloaded images still use external URLs and may require network connectivity.
 - Rich UI components are not guaranteed pixel-exact or interactive. Canvas and iframe capture may be blocked.
 - PDF workflow is manual Save as PDF; complete E2E browser QA still required.
+
+## Export failures and retries
+
+The preview reports which file downloads **started**, not which files finished saving to disk. If one format is blocked, remaining selected formats are still attempted and the Print / Save as PDF path remains available. Check Chrome Downloads for actual completion. Retrying an export may produce duplicate successfully downloaded files.
+
+If removing temporary export data fails, the preview retains the content and shows an error rather than falsely claiming it was cleared.
 
 ## Privacy
 
