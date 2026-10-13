@@ -69,13 +69,19 @@ The popup provides explicitly named message checkboxes, a readable empty state, 
 
 Saved HTML is sanitized with an explicit tag and CSS-property allowlist. The file includes a restrictive **Content Security Policy** disallowing scripts, forms and object embedding, plus `no-referrer` defaults for external links and images. Regular typography, direction and table formatting remain supported.
 
-**Important:** If an image could not be embedded locally, its retained external URL may still be requested when the HTML is opened. The extension does not fetch remote assets itself, but opening exported content may require a network connection for those images. Review export warnings before sharing sensitive documents.
+**Important:** External image loading requires an explicit preview opt-in. Once enabled, saved HTML or Markdown containing remote images can contact third-party hosts when opened. JSON retains source URLs without automatically fetching them.
+
+## External image privacy
+
+The preview **blocks external image requests by default** and shows a readable placeholder for any remote image that could not be embedded. Inline data images remain visible. To load images over the network, check **Load online images** in the preview; this may contact third-party websites.
+
+The setting applies to the preview and to downloaded **HTML/Markdown** files. When unchecked, those formats contain image placeholders rather than active external image URLs. JSON intentionally retains the original structured source URLs as plain data and does not fetch them.
 
 ## Known limitations
 
 - A user-triggered **Scan entire conversation** action attempts to scroll through long/virtualized chats (up to 48 steps, 250 messages, or 10 MiB of captured content). It returns to your original scroll position; cancelling or hitting a limit yields an explicitly incomplete scan. Some lazy-loaded turns may still be missed.
 - ChatGPT updates can break message selectors.
-- The extension tries to embed already-loaded, origin-clean images as PNG directly into exported HTML (with 1 MiB per-image and 2 MiB per-message inline budgets). Cross-origin/tainted, oversized, or unloaded images still use external URLs and may require network connectivity.
+- The extension tries to embed already-loaded, origin-clean images as PNG (1 MiB per-image and 2 MiB per-message budgets). Other images are blocked by default in preview and readable downloads; the user can opt in to load their external URLs. JSON retains URLs as structured source data.
 - Rich UI components are not guaranteed pixel-exact or interactive. Canvas and iframe capture may be blocked.
 - PDF workflow is manual Save as PDF; complete E2E browser QA still required.
 
