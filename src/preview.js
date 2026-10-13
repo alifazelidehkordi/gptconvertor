@@ -50,28 +50,64 @@ function render(doc) {
 async function saveFile(name, data, mime) {
   const blob = new Blob([data], {type:mime});
   const url = URL.createObjectURL(blob);
-  downloads.push(url);
-  await chrome.downloads.download({url,filename:name,saveAs:false,conflictAction:'uniquify'});
+  try {
+    const id = await chrome.downloads.download({
+      url,filename:name,saveAs:false,conflictAction:'uniquify'
+    });
+    if (!Number.isInteger(id) || id < 0) {
+      throw Error('Browser did not confirm that the download started.');
+    }
+    // The browser may still be downloading; retain the object URL until the
+    // preview closes rather than revoking immediately after scheduling.
+    downloads.push(url);
+    return id;
+  } catch (error) {
+    URL.revokeObjectURL(url);
+    throw error;
+  }
 }
 async function exportSelected() {
   if (!job) return;
   const {doc, choices} = job;
   const name = safeFilename(doc.title || 'chatgpt-export');
+  const files = [
+    {type:'html', label:'HTML', extension:'.html',
+      mime:'text/html;charset=utf-8',
+      build:() => buildHtml(doc,{paperSize:$('paperSize').value})},
+    {type:'markdown',label:'Markdown',extension:'.md',
+      mime:'text/markdown;charset=utf-8',build:() => buildMarkdown(doc)},
+    {type:'json',label:'JSON',extension:'.json',
+      mime:'application/json;charset=utf-8',build:() => JSON.stringify(doc,null,2)}
+  ];
+  const started = [];
+  const failures = [];
   $('export').disabled = true;
   try {
-    if (choices.includes('html')) {
-      await saveFile(name + '.html', buildHtml(doc,{paperSize:$('paperSize').value}), 'text/html;charset=utf-8');
+    for (const file of files) {
+      if (!choices.includes(file.type)) continue;
+      setInfo('Starting ' + file.label + ' download…');
+      try {
+        await saveFile(name + file.extension,file.build(),file.mime);
+        started.push(file.label);
+      } catch (error) {
+        failures.push(file.label + ': ' + (error?.message || String(error)));
+      }
     }
-    if (choices.includes('markdown')) {
-      await saveFile(name + '.md', buildMarkdown(doc), 'text/markdown;charset=utf-8');
+    // The print dialog remains available even if another format failed.
+    if (choices.includes('pdf')) {
+      setInfo('Opening Print / Save as PDF…');
+      try {
+        window.print();
+        started.push('PDF print dialog');
+      } catch (error) {
+        failures.push('PDF: ' + (error?.message || String(error)));
+      }
     }
-    if (choices.includes('json')) {
-      await saveFile(name + '.json', JSON.stringify(doc,null,2), 'application/json;charset=utf-8');
-    }
-    setInfo('Files downloaded. ' + (choices.includes('pdf') ? 'Save as PDF in the print dialog.' : 'Export complete.'));
-    if (choices.includes('pdf')) window.print();
-  } catch (err) {
-    setInfo('Download failed: ' + err.message + '. Try again or print separately.');
+    const messages = [];
+    if (started.length) messages.push('Started: ' + started.join(', ') + '.');
+    if (failures.length) messages.push('Failed: ' + failures.join('; ') + '.');
+    if (!started.length && !failures.length) messages.push('No export format selected.');
+    setInfo(messages.join(' ') + (failures.length ? ' Retry failed formats individually after checking your browser downloads.' : ''));
   } finally {
     $('export').disabled = false;
   }
@@ -93,7 +129,12 @@ setPaperSize('A4');
 $('export').addEventListener('click', exportSelected);
 $('print').addEventListener('click', () => window.print());
 $('clear').addEventListener('click', async () => {
-  if (jobId) await chrome.storage.session.remove(jobId);
+  try {
+    if (jobId) await chrome.storage.session.remove(jobId);
+  } catch (error) {
+    setInfo('Could not clear temporary export data: ' + (error?.message || String(error)));
+    return;
+  }
   job = null;
   $('export').disabled = true;
   $('print').disabled = true;
