@@ -51,4 +51,12 @@ Export failure handling (when live QA resumes):
 - Retry an export and note the potential duplicate filenames created with Chrome's uniquify behavior.
 - Simulate a failed session-storage deletion; the preview should not disappear or claim data was cleared.
 
+Keyboard and assistive-technology acceptance (when live-site testing resumes):
+- Navigate popup from the keyboard using Tab/Shift+Tab; message checkboxes have descriptive names and can be toggled using Space.
+- With no matching messages, an explanatory empty state appears and selection/export controls are disabled.
+- Start a full conversation scan. Message selection/filter controls are disabled while scanning; pressing Escape requests cancellation and restores focus to the scan button.
+- In the preview, first Tab shows a **Skip to exported document** link; Enter focuses the document.
+- Check visible focus rings in light and dark themes and confirm status/selection counts are screen-reader announcements.
+- Test high-contrast/forced-color mode and zoom/reflow.
+
 Status: source and automated checks are available. Real-browser authenticated smoke tests have not yet been attested.

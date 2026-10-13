@@ -8,13 +8,13 @@
     <section class="full-scan" aria-label="Long conversation capture">
       <div class="row">
         <button type="button" class="scan-button" id="scanAll" disabled>Scan entire conversation</button>
-        <button type="button" class="plain" id="cancelScan" hidden>Cancel scan</button>
+        <button type="button" class="plain" id="cancelScan" hidden aria-keyshortcuts="Escape">Cancel scan</button>
       </div>
       <p id="scanStatus" role="status" aria-live="polite">Only currently rendered messages are listed. Full scan temporarily scrolls this conversation.</p>
     </section>
-    <section aria-label="Select messages">
-      <div class="row"><strong>Messages <span id="count"></span></strong><button type="button" class="plain" id="toggleAll">Select all</button></div>
-      <div id="messages" class="messages"></div>
+    <section aria-labelledby="messageHeading">
+      <div class="row"><strong id="messageHeading">Messages <span id="count" aria-live="polite" aria-atomic="true"></span></strong><button type="button" class="plain" id="toggleAll">Select all</button></div>
+      <div id="messages" class="messages" role="group" aria-label="Conversation messages" aria-busy="false"></div>
     </section>
     <fieldset><legend>Export formats (choose several)</legend>
       <label><input type="checkbox" id="html" checked> Standalone HTML</label>

@@ -61,6 +61,10 @@ Printed tables use paginated table layout rather than on-screen horizontal scrol
 
 **Export notes** now travel with the preview, HTML, and Markdown, including incomplete conversation scans, skipped turns, and warnings for individual media elements. JSON also retains the structured warning details.
 
+## Keyboard and accessibility support
+
+The popup provides explicitly named message checkboxes, a readable empty state, keyboard focus indicators, and announcements for selection counts. During a long scan, selection controls are unavailable; press **Escape** or choose **Cancel scan** to stop. The preview includes a keyboard-accessible **Skip to exported document** link. Screen-reader and high-contrast manual acceptance remain part of the later release gate.
+
 ## Known limitations
 
 - A user-triggered **Scan entire conversation** action attempts to scroll through long/virtualized chats (up to 48 steps, 250 messages, or 10 MiB of captured content). It returns to your original scroll position; cancelling or hitting a limit yields an explicitly incomplete scan. Some lazy-loaded turns may still be missed.

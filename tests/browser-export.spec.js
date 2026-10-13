@@ -319,3 +319,30 @@ test('failed preview-data cleanup leaves content available and reports the error
   await expect(page.locator('#paper')).toContainText('Study guide');
   await expect(page.locator('#export')).toBeEnabled();
 });
+
+test('preview keyboard skip-link reaches the document and focus rings are visible', async ({page}) => {
+  const markup = read('preview.html').replace(/<script type="module"[^>]+><\/script>/,'');
+  await page.setContent(markup);
+  await page.addStyleTag({content:read('preview.css')});
+  await page.evaluate(fixture => {
+    window.location.hash = '#gptc-00000000-0000-4000-a000-000000000001';
+    window.chrome = {
+      storage:{session:{get:async key => ({[key]:{doc:fixture,choices:['json']}})}},
+      downloads:{download:async () => 1}
+    };
+  },doc);
+  await page.addScriptTag({type:'module',content:previewJs});
+  await expect(page.locator('#paper')).toContainText('Study guide');
+  await page.keyboard.press('Tab');
+  await expect(page.locator('.skip-link')).toBeFocused();
+  const visual = await page.locator('.skip-link').evaluate(el => ({
+    transform:getComputedStyle(el).transform,
+    outline:getComputedStyle(el).outlineStyle
+  }));
+  expect(visual.transform).toBe('none');
+  expect(visual.outline).toBe('solid');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#paper')).toBeFocused();
+  await expect(page.locator('.toolbar')).toHaveAttribute('aria-label','Export actions');
+  await expect(page.locator('#paper')).toHaveAttribute('aria-label','Exported document');
+});

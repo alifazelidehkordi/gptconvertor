@@ -106,8 +106,10 @@ Gate: load unpacked in Chrome; the four export choices are available; no server 
 4. **Merged PR #10:** best-effort origin-clean loaded-image embedding for offline HTML.
 5. **Merged PR #11:** print/PDF pagination, A4/Letter selection, warning propagation into HTML/Markdown, and long-document PDF regression checks.
 6. **Current PR:** isolate multi-format download failures, distinguish started downloads from completed downloads, preserve the PDF print path, and recover from failed temporary-data cleanup.
-7. **Afterward:** richer visual fallbacks, larger-language/RTL regression fixtures, preview/extension accessibility, dependency/security review, and release preparation.
-8. **Deferred human acceptance:** authenticate on current ChatGPT and complete issue #1; do not declare v1 production ready before this evidence exists.
+7. **Done, PR #12 merged:** independent per-format downloads, truthful start/error reporting, and safer cleanup errors.
+8. **Current PR:** keyboard/screen-reader improvements: empty message states, accessible labels, focus rings, scan busy/cancel, preview skip link.
+9. **Afterward:** richer visual fallbacks, security review of captured markup/CSS, RTL fixtures, and release preparation.
+10. **Deferred human acceptance:** authenticate on current ChatGPT and complete issue #1; do not declare v1 production ready before this evidence exists.
 
 Use narrow pull requests with regression tests where practical; merge only after CI and review. Update phase status after each merge, not when a feature is only proposed.
 

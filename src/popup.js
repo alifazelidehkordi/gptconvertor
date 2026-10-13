@@ -9,12 +9,23 @@ function shown() {
 function refresh() {
   const items = shown();
   $('messages').replaceChildren();
+  if (!items.length) {
+    const empty = document.createElement('p');
+    empty.className = 'empty-state';
+    empty.textContent = scanData
+      ? 'No messages match this filter. Change the filter or scan the conversation.'
+      : 'No messages to select yet.';
+    $('messages').append(empty);
+  }
   items.forEach(m => {
     const label = document.createElement('label');
     label.className = 'message';
     const input = document.createElement('input');
     input.type = 'checkbox';
     input.checked = selected.has(m.id);
+    input.disabled = busy;
+    input.setAttribute('aria-label',
+      (m.role === 'assistant' ? 'ChatGPT response' : 'Your message') + ': ' + m.preview);
     input.addEventListener('change', () => {
       input.checked ? selected.add(m.id) : selected.delete(m.id);
       update();
@@ -31,7 +42,12 @@ function refresh() {
 function update() {
   const visible = shown();
   $('count').textContent = '(' + selected.size + '/' + visible.length + ')';
-  $('toggleAll').textContent = visible.every(m => selected.has(m.id)) ? 'Select none' : 'Select all';
+  $('toggleAll').textContent = visible.length && visible.every(m => selected.has(m.id))
+    ? 'Select none' : 'Select all';
+  $('toggleAll').disabled = busy || !visible.length;
+  $('assistantOnly').disabled = busy;
+  $('messages').setAttribute('aria-busy', String(busy));
+  $('messages').querySelectorAll('input[type="checkbox"]').forEach(input => {input.disabled = busy;});
   $('export').disabled = busy || !selected.size || !types.some(t => $(t).checked);
 }
 function status(text) { $('status').textContent = text; }
@@ -89,6 +105,14 @@ $('scanAll').addEventListener('click', async () => {
     $('scanAll').disabled = !sourceTab;
     $('cancelScan').hidden = true;
     update();
+    if (sourceTab && document.hasFocus()) $('scanAll').focus();
+  }
+});
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && busy && !$('cancelScan').hidden &&
+      !$('cancelScan').disabled) {
+    event.preventDefault();
+    $('cancelScan').click();
   }
 });
 $('cancelScan').addEventListener('click', async () => {
