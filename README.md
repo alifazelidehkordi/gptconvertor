@@ -47,11 +47,19 @@ During export, offscreen messages may use snapshots taken earlier in the scan. T
 
 ## Project status and next milestones
 
-**Current:** v0.1 source implementation with automated Chromium/Node regression tests. Fixture-based CI passed on October 13, 2026; live authenticated ChatGPT QA and release packaging are still outstanding.
+**Current:** v0.1 development build with Chromium/Node regression tests and automatically packaged installable ZIPs. Authenticated live-site validation, Chrome Web Store preparation, and final release QA are still outstanding.
 
 The next priorities are reliable message detection, accurate capture of long conversations, clear warnings for missing content, fully offline exports, PDF/RTL quality, and an installable v1 release. DOCX/ODT and pixel-exact visual mode are later improvements.
 
-See [the updated roadmap and release gates](docs/PLAN.md) and [browser QA checklist](docs/QA.md). Visual-only replies and merged-table/image-dimension preservation are being hardened in the current development work.
+See [the updated roadmap and release gates](docs/PLAN.md) and [browser QA checklist](docs/QA.md). Content selection, visual-only replies, merged tables, and offscreen capture have automated regression coverage.
+
+## PDF and printable HTML
+
+Use the **PDF paper** selector in the preview to choose **A4** (default) or **US Letter** before printing or downloading standalone HTML. The selected paper size is included in downloaded HTML print styles. Chrome's Print → **Save as PDF** remains the PDF save path.
+
+Printed tables use paginated table layout rather than on-screen horizontal scrolling, headings avoid being orphaned, and long code lines wrap. Ordinary paragraphs—including Persian/Arabic and mixed English—stay selectable/searchable; complex visuals can remain rasterized. Native print output may still vary with fonts and the destination printer, so verify critical documents before sharing.
+
+**Export notes** now travel with the preview, HTML, and Markdown, including incomplete conversation scans, skipped turns, and warnings for individual media elements. JSON also retains the structured warning details.
 
 ## Known limitations
 
