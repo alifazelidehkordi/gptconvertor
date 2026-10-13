@@ -96,3 +96,96 @@ test('visual-only messages appear in scan and survive export', async ({page}) =>
   expect(captured.data.messages[0].html).toContain('data:image/png;base64,');
   expect(captured.data.messages[1].html).toContain('data:image/svg+xml');
 });
+
+test('selection stays on the correct message after DOM insertion', async ({page}) => {
+  await page.setContent(`
+    <main>
+      <div data-message-author-role="assistant"><p>First answer</p></div>
+      <div data-message-author-role="assistant"><p>Second answer</p></div>
+    </main>`);
+  await page.evaluate(() => {
+    window.chrome = {runtime:{onMessage:{addListener: cb => window.__gptcHandle = cb}}};
+  });
+  await page.addScriptTag({content:adapter});
+  const scan = await page.evaluate(() => new Promise(resolve =>
+    window.__gptcHandle({type:'GPTC_SCAN'}, {}, resolve)));
+  const second = scan.data.messages[1];
+  await page.locator('main').evaluate(root => {
+    const first = document.createElement('div');
+    first.setAttribute('data-message-author-role', 'user');
+    first.textContent = 'A new earlier prompt';
+    root.prepend(first);
+  });
+  const captured = await page.evaluate(selected => new Promise(resolve =>
+    window.__gptcHandle({type:'GPTC_COLLECT',selected}, {}, resolve)),
+    [{id:second.id,signature:second.signature}]);
+  expect(captured.data.messages).toHaveLength(1);
+  expect(captured.data.messages[0].text).toBe('Second answer');
+  expect(captured.data.captureSummary).toEqual({requested:1,captured:1,missing:0});
+});
+
+test('changes beyond 80 characters are detected and missing turns reported', async ({page}) => {
+  await page.setContent(`
+    <main>
+      <div data-message-author-role="assistant">
+        <p>${'a'.repeat(100)} original ending</p>
+      </div>
+      <div data-message-author-role="assistant"><p>Unaffected</p></div>
+    </main>`);
+  await page.evaluate(() => {
+    window.chrome = {runtime:{onMessage:{addListener: cb => window.__gptcHandle = cb}}};
+  });
+  await page.addScriptTag({content:adapter});
+  const scan = await page.evaluate(() => new Promise(resolve =>
+    window.__gptcHandle({type:'GPTC_SCAN'}, {}, resolve)));
+  await page.locator('p').first().evaluate(node => {
+    node.textContent = node.textContent.replace('original ending','changed ending');
+  });
+  const captured = await page.evaluate(selected => new Promise(resolve =>
+    window.__gptcHandle({type:'GPTC_COLLECT',selected}, {}, resolve)),
+    scan.data.messages.map(({id,signature}) => ({id,signature})));
+  expect(captured.data.messages.map(m => m.text)).toEqual(['Unaffected']);
+  expect(captured.data.captureSummary).toEqual({requested:2,captured:1,missing:1});
+  expect(captured.data.skipped).toHaveLength(1);
+  expect(captured.data.skipped[0].id).toBe(scan.data.messages[0].id);
+  expect(captured.data.warnings[0]).toContain('Message changed or disappeared');
+});
+
+test('duplicate text turns have distinct IDs and nested role wrappers do not duplicate', async ({page}) => {
+  await page.setContent(`
+    <main>
+      <div data-message-author-role="assistant">
+        <div data-message-author-role="assistant"><p>Same answer</p></div>
+      </div>
+      <div data-message-author-role="assistant"><p>Same answer</p></div>
+    </main>`);
+  await page.evaluate(() => {
+    window.chrome = {runtime:{onMessage:{addListener: cb => window.__gptcHandle = cb}}};
+  });
+  await page.addScriptTag({content:adapter});
+  const scan = await page.evaluate(() => new Promise(resolve =>
+    window.__gptcHandle({type:'GPTC_SCAN'}, {}, resolve)));
+  expect(scan.data.messages).toHaveLength(2);
+  expect(scan.data.messages[0].id).not.toBe(scan.data.messages[1].id);
+  const captured = await page.evaluate(selected => new Promise(resolve =>
+    window.__gptcHandle({type:'GPTC_COLLECT',selected}, {}, resolve)),
+    scan.data.messages.map(({id,signature}) => ({id,signature})));
+  expect(captured.data.captureSummary).toEqual({requested:2,captured:2,missing:0});
+});
+
+test('conversation changes reject stale scan selections', async ({page}) => {
+  await page.setContent('<main><div data-message-author-role="assistant">Answer</div></main>');
+  await page.evaluate(() => {
+    window.chrome = {runtime:{onMessage:{addListener: cb => window.__gptcHandle = cb}}};
+  });
+  await page.addScriptTag({content:adapter});
+  const scan = await page.evaluate(() => new Promise(resolve =>
+    window.__gptcHandle({type:'GPTC_SCAN'}, {}, resolve)));
+  const capture = await page.evaluate(selected => new Promise(resolve =>
+    window.__gptcHandle({
+      type:'GPTC_COLLECT',selected,sourceUrl:'https://chatgpt.com/c/another-conversation'
+    }, {}, resolve)), scan.data.messages.map(({id,signature}) => ({id,signature})));
+  expect(capture.data.messages).toHaveLength(0);
+  expect(capture.data.captureSummary).toEqual({requested:1,captured:0,missing:1});
+  expect(capture.data.warnings[0]).toContain('Conversation changed');
+});

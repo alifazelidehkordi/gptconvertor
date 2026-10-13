@@ -22,20 +22,51 @@
   const SKIP = '[aria-hidden="true"],[hidden],[data-gptconvertor-skip]';
   const CONTROLS = /^(copy|share|edit|regenerate|retry|good response|bad response|thumbs up|thumbs down|read aloud|more|open menu)$/i;
 
+  // Selectors and DOM positions may shift between scanning and exporting.
+  // Identify a rendered turn by its *whole* text and media fingerprint instead
+  // of a transient index or the first 80 characters.
+  function fingerprint(role, text, body) {
+    const visual = Array.from(body.querySelectorAll('img, svg, canvas, iframe')).map(node => {
+      const tag = node.localName;
+      if (tag === 'img') return 'img:' + (node.currentSrc || node.getAttribute('src') || '') +
+        ':' + (node.getAttribute('alt') || '');
+      if (tag === 'svg') return 'svg:' + node.outerHTML;
+      if (tag === 'canvas') return 'canvas:' + node.width + 'x' + node.height +
+        ':' + (node.getAttribute('aria-label') || '');
+      return 'iframe:' + (node.getAttribute('src') || '');
+    }).join('\u0000');
+    const value = role + '\u0000' + text + '\u0000' + visual;
+    let h1 = 2166136261, h2 = 3339675911;
+    for (let i = 0; i < value.length; i++) {
+      const char = value.charCodeAt(i);
+      h1 = Math.imul(h1 ^ char, 16777619);
+      h2 = Math.imul(h2 ^ char, 2246822519);
+    }
+    return role + '-' + value.length.toString(36) + '-' +
+      (h1 >>> 0).toString(36) + '-' + (h2 >>> 0).toString(36);
+  }
+
   function nodes() {
-    const roleNodes = Array.from(document.querySelectorAll('[data-message-author-role]'));
-    const roots = roleNodes.length ? roleNodes : Array.from(document.querySelectorAll('article[data-testid^="conversation-turn-"]'));
-    return roots.map((root, index) => {
+    const roleNodes = Array.from(document.querySelectorAll('[data-message-author-role]'))
+      .filter(root => !root.parentElement?.closest('[data-message-author-role]'));
+    const roots = roleNodes.length ? roleNodes :
+      Array.from(document.querySelectorAll('article[data-testid^="conversation-turn-"]'));
+    const occurrences = new Map();
+    return roots.map(root => {
       const role = root.getAttribute('data-message-author-role') ||
         root.querySelector('[data-message-author-role]')?.getAttribute('data-message-author-role') || '';
       const body = root.hasAttribute('data-message-author-role') ? root :
         root.querySelector('[data-message-author-role]') || root;
       const text = (body.innerText || body.textContent || '').trim();
-      // A reply can consist entirely of an image, chart, or embedded visual.
       const hasVisual = !!body.querySelector('img, svg, canvas, iframe');
-      return { id: 'm-' + index, index, role, body, text, hasVisual };
-    }).filter(x => (x.role === 'assistant' || x.role === 'user') &&
-      (x.text.length > 0 || x.hasVisual));
+      if ((role !== 'assistant' && role !== 'user') || (!text && !hasVisual)) return null;
+      const signature = fingerprint(role, text, body);
+      const occurrence = occurrences.get(signature) || 0;
+      occurrences.set(signature, occurrence + 1);
+      return {
+        id: 'm-' + signature + '-' + occurrence, role, body, text, signature
+      };
+    }).filter(Boolean);
   }
 
   function scan() {
@@ -45,7 +76,7 @@
       messages: nodes().map(x => ({
         id: x.id,
         role: x.role,
-        signature: x.role + ':' + x.text.slice(0, 80),
+        signature: x.signature,
         preview: x.text ? x.text.replace(/\s+/g, ' ').slice(0, 150) : '[Visual-only message]'
       }))
     };
@@ -193,14 +224,19 @@
       return;
     }
     if (message?.type === 'GPTC_COLLECT') {
-      const available = new Map(nodes().map(x => [x.id, x]));
       const selected = Array.isArray(message.selected) ? message.selected : [];
+      const sameConversation = !message.sourceUrl || message.sourceUrl === location.href;
+      const available = sameConversation ? new Map(nodes().map(x => [x.id, x])) : new Map();
       const warnings = [];
       const messages = [];
+      const skipped = [];
+      if (!sameConversation) warnings.push('Conversation changed since the message list was scanned. Reopen the extension.');
       for (const selection of selected) {
         const entry = available.get(selection.id);
-        if (!entry || (entry.role + ':' + entry.text.slice(0, 80)) !== selection.signature) {
-          warnings.push('Message changed or disappeared: ' + selection.id);
+        if (!entry || entry.signature !== selection.signature) {
+          const reason = sameConversation ? 'Message changed or disappeared' : 'Conversation changed';
+          warnings.push(reason + ': ' + String(selection.id));
+          skipped.push({id: String(selection.id), reason});
           continue;
         }
         const part = capture(entry.body);
@@ -212,7 +248,9 @@
       respond({ok:true,data:{
         version:1,title:document.title || 'ChatGPT conversation',
         sourceUrl:location.href, exportedAt:new Date().toISOString(),
-        messages, warnings
+        messages, warnings,
+        captureSummary:{requested:selected.length,captured:messages.length,missing:skipped.length},
+        skipped
       }});
     }
   });

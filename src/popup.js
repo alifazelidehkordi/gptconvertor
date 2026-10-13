@@ -51,8 +51,11 @@ $('export').addEventListener('click', async () => {
     const selectedMessages = scanData.messages.filter(m => selected.has(m.id))
       .map(m => ({id:m.id,signature:m.signature}));
     const result = await chrome.tabs.sendMessage(sourceTab.id,
-      {type:'GPTC_COLLECT',selected:selectedMessages});
-    if (!result?.ok || !result.data.messages.length) throw Error('No messages captured.');
+      {type:'GPTC_COLLECT',selected:selectedMessages,sourceUrl:scanData.sourceUrl});
+    if (!result?.ok) throw Error('Capture failed. Please scan again.');
+    if (!result.data?.messages?.length) {
+      throw Error(result.data?.warnings?.[0] || 'No messages captured. Please scan again.');
+    }
     const jobId = 'gptc-' + crypto.randomUUID();
     await chrome.storage.session.set({[jobId]:{
       doc:result.data, choices:types.filter(t => $(t).checked)

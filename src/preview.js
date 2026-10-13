@@ -20,6 +20,15 @@ function render(doc) {
   addText('h1', doc.title || 'ChatGPT export', root);
   const meta = addText('div', doc.sourceUrl + ' · ' + doc.exportedAt, root);
   meta.className = 'meta';
+  if (doc.captureSummary?.missing > 0) {
+    const {requested, captured, missing} = doc.captureSummary;
+    const warning = addText('div',
+      'Incomplete capture: ' + captured + ' of ' + requested + ' selected messages exported (' +
+      missing + ' missing). Review the capture notes below before downloading.',
+      root);
+    warning.className = 'warning';
+    warning.setAttribute('role', 'alert');
+  }
   for (const [index, message] of doc.messages.entries()) {
     const section = document.createElement('section');
     section.className = 'export-message';
@@ -85,7 +94,11 @@ async function start() {
   job = data[jobId];
   if (!job?.doc?.messages?.length) {setInfo('Preview expired or empty. Reopen the extension.');return;}
   render(job.doc);
-  setInfo(job.doc.messages.length + ' messages · ' + job.choices.join(', '));
+  const summary = job.doc.captureSummary;
+  const label = summary?.missing > 0
+    ? summary.captured + '/' + summary.requested + ' messages · ' + summary.missing + ' missing'
+    : job.doc.messages.length + ' messages';
+  setInfo(label + ' · ' + job.choices.join(', '));
   $('export').disabled = false;
   $('print').disabled = false;
 }

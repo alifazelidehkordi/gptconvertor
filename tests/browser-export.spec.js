@@ -111,3 +111,28 @@ test('HTML export retains table spans and captured visual dimensions', async ({p
   expect(output.exported).toContain('colspan="2"');
   expect(output.exported).toContain('width="640"');
 });
+
+test('preview visibly flags incomplete exports before download', async ({page}) => {
+  const html = read('preview.html').replace(/<script type="module"[^>]+><\/script>/,'');
+  await page.setContent(html);
+  await page.addStyleTag({content:read('preview.css')});
+  const incomplete = {
+    ...doc,
+    captureSummary:{requested:2,captured:1,missing:1},
+    skipped:[{id:'m-missing',reason:'Message changed or disappeared'}],
+    warnings:['Message changed or disappeared: m-missing']
+  };
+  await page.evaluate(fixture => {
+    window.location.hash = '#gptc-00000000-0000-4000-a000-000000000001';
+    window.chrome = {
+      storage:{session:{get:async key => ({[key]:{doc:fixture,choices:['json']}})}},
+      downloads:{download:async () => 1}
+    };
+  }, incomplete);
+  await page.addScriptTag({type:'module',content:previewJs});
+  await expect(page.locator('#paper [role="alert"]'))
+    .toContainText('Incomplete capture: 1 of 2 selected messages exported');
+  await expect(page.locator('#info')).toContainText('1/2 messages');
+  await expect(page.locator('#paper')).toContainText('Message changed or disappeared');
+  await expect(page.locator('#export')).toBeEnabled();
+});

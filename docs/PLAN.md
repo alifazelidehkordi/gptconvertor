@@ -21,7 +21,7 @@ No extension-owned server, telemetry, remote JavaScript, or broad always-on Chat
 - **Implemented in v0.1:** MV3 popup + on-demand content script, assistant-only default, per-turn selection, HTML/Markdown/JSON output, preview, Chrome Print → PDF, session storage, HTML sanitization, and clear-preview action.
 - **Automated:** Node helper tests and Playwright tests for fixture-based DOM extraction, selection, file exports, sanitizer behavior, and Chromium-generated PDF text. CI ran successfully on `main` after PR #4.
 - **Not validated:** end-to-end behavior on live authenticated ChatGPT, very long/virtualized conversations, complex rich UI, fully offline HTML, or Chrome Web Store packaging.
-- **Proposed hardening:** scan/export visual-only messages and retain safe table spans and image dimensions. These are not shipped until the corresponding pull request merges.
+- **Merged hardening (PR #5):** scan/export visual-only messages and retain safe table spans and image dimensions.
 
 ## Prioritized phases
 
@@ -99,10 +99,10 @@ Gate: load unpacked in Chrome; the four export choices are available; no server 
 
 ## Immediate execution order
 
-1. **This PR:** harden visual-only scanning and HTML table/image preservation, plus add regression tests and this plan.
-2. **Next PR:** complete issue #1 live browser QA; triage any adapter regressions and update `docs/QA.md` with evidence.
-3. **Next PR:** implement reliable turn identity and explicit incomplete-capture reporting before auto-scroll.
-4. **Following PRs:** bounded long-chat capture, offline asset handling, print regressions, UX, then packaging.
+1. **Done, PR #5 merged:** visual-only scanning, HTML table/image preservation, regression tests, and the gated roadmap.
+2. **Current PR:** content-based turn identifiers, full-text change detection, conversation-navigation guard, and explicit incomplete-capture reporting.
+3. **Next human QA gate:** complete issue #1 against live authenticated ChatGPT; triage adapter regressions and record evidence in `docs/QA.md`. Fixture tests do not satisfy this gate.
+4. **Next implementation:** bounded, cancellable long-chat/virtualized capture (issue #2), then offline asset handling, print regressions, UX, and packaging.
 5. Tackle DOCX and pixel-exact PDF only after the core export path is trustworthy.
 
 Use narrow pull requests with a failing regression test where possible; merge only after CI and review. Update phase status after each merge, not when a feature is only proposed.

@@ -15,4 +15,12 @@
 13. Try a long/virtualized chat, canvas, iframe, maps and heavy visual cards; note limitations.
 14. Use Clear saved preview and check that the temp job is no longer available.
 
-Status: source and automated checks are available. Real-browser smoke tests have not yet been attested.
+Additional reliability checks:
+- Open the popup, select a later answer, then insert/change an earlier turn in the page. Export must keep the intended answer or warn that it changed.
+- Edit the end of a long answer after scanning (the first 80 characters unchanged). The old selection must not silently export the edited turn.
+- Select multiple turns, then remove one before export. Preview must prominently show the number missing and the affected message IDs in capture notes.
+- Navigate to another conversation after opening the popup; export must stop with a clear rescan error.
+- Test two identical replies and nested role wrappers: show and export both only once each.
+- A longer conversation that virtualizes messages still needs separate manual validation; these identity tests do not guarantee complete offscreen capture.
+
+Status: source and automated checks are available. Real-browser authenticated smoke tests have not yet been attested.
